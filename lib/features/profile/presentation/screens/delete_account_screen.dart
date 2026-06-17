@@ -168,7 +168,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               decoration: InputDecoration(
                 hintText: _confirmWord,
                 hintStyle: GoogleFonts.inter(
-                    color: AppColors.textDisabled, letterSpacing: 1.5),
+                    // placeholder shows the literal word to type → must stay
+                    // readable; textGhost (~4.9:1), not the disabled token.
+                    color: AppColors.textGhost, letterSpacing: 1.5),
                 filled: true,
                 fillColor: AppColors.surfaceRaised,
                 contentPadding:

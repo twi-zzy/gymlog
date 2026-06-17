@@ -53,12 +53,12 @@ class RoutineExerciseBlock extends StatelessWidget {
               children: [
                 RepaintBoundary(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(12),
                     child: Container(
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(12),
                         border: RDStyles.hairlineBorder,
                       ),
                       child: CachedNetworkImage(
@@ -221,7 +221,7 @@ class _SetTable extends StatelessWidget {
       case 'drop':
         return const _SetTypeChip(
             label: 'Drop',
-            fg: Color(0xFFB98CFF),
+            fg: Color(0xFF00C4A0),
             icon: Icons.trending_down_rounded);
       case 'failure':
         return const _SetTypeChip(
@@ -247,7 +247,7 @@ class _SetTypeChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(
           color: fg.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

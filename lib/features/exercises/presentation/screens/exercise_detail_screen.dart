@@ -478,7 +478,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen> {
                           decoration: BoxDecoration(
                             color:
                                 AppColors.accentPrimary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Center(
                             child: Text(

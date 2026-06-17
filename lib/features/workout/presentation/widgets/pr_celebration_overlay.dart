@@ -118,7 +118,7 @@ class _PrCelebrationState extends State<_PrCelebration>
                     end: Alignment.bottomCenter,
                     colors: [Color(0xFF15101D), Color(0xFF0B0B0D)],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: AppColors.accentPrimary.withValues(alpha: 0.35),
                     width: 1,
@@ -192,7 +192,7 @@ class _PrCelebrationState extends State<_PrCelebration>
                                       horizontal: 14, vertical: 12),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.04),
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
                                     children: [
@@ -269,7 +269,7 @@ class _PrCelebrationState extends State<_PrCelebration>
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: Text(
@@ -306,10 +306,10 @@ class _ConfettiPainter extends CustomPainter {
   static List<_Particle> _generate() {
     final rng = math.Random(7);
     const palette = [
-      Color(0xFF8A2BE2),
-      Color(0xFFB98CFF),
+      Color(0xFFE6C84A),
+      Color(0xFFE6C84A),
       Color(0xFFCBB2FF),
-      Color(0xFF7B68EE),
+      Color(0xFFE6C84A),
       Color(0xFFFFFFFF),
       Color(0xFFFFCC00),
     ];

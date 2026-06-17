@@ -34,7 +34,7 @@ class RoutineCard extends ConsumerWidget {
   /// Stable accent derived from the routine's primary muscle group, so
   /// "Push Day" and "Leg Day" are tinted differently forever.
   Color get _glyphColor {
-    if (muscleTags.isEmpty) return const Color(0xFFB98CFF);
+    if (muscleTags.isEmpty) return const Color(0xFF00C4A0);
     final index =
         muscleTags.first.hashCode.abs() % AppColors.muscleSplitPalette.length;
     final base = AppColors.muscleSplitPalette[index];
@@ -57,7 +57,7 @@ class RoutineCard extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           label,
@@ -93,7 +93,7 @@ class RoutineCard extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: RDStyles.cardGradient,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: RDStyles.hairlineBorder,
       ),
       clipBehavior: Clip.antiAlias,

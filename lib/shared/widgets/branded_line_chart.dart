@@ -333,7 +333,7 @@ class _BrandedLineChartState extends State<BrandedLineChart> {
                       height: 34 * h,
                       margin: const EdgeInsets.symmetric(horizontal: 2.5),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
+                        borderRadius: BorderRadius.circular(4),
                         gradient: const LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,

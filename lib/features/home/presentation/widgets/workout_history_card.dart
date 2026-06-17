@@ -40,7 +40,7 @@ class WorkoutHistoryCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: RDStyles.cardGradient,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: RDStyles.hairlineBorder,
       ),
       clipBehavior: Clip.antiAlias,
@@ -192,7 +192,7 @@ class _ExerciseRow extends ConsumerWidget {
         height: 52,
         decoration: BoxDecoration(
           color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
       // ── Error / null: icon fallback ───────────────────────────────────────
@@ -201,7 +201,7 @@ class _ExerciseRow extends ConsumerWidget {
       data: (memoryImage) {
         if (memoryImage == null) return _iconFallback();
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           child: Image(
             image: memoryImage,
             width: 52,
@@ -225,7 +225,7 @@ class _ExerciseRow extends ConsumerWidget {
       height: 52,
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
         child: Icon(

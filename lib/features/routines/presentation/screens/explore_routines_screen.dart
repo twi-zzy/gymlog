@@ -63,17 +63,17 @@ class _RoutineTemplate {
 
   Color get levelColor => switch (level) {
         _Level.beginner => const Color(0xFF34C759), // green
-        _Level.intermediate => const Color(0xFFB98CFF), // lavender
+        _Level.intermediate => const Color(0xFF00C4A0), // lavender
         _Level.advanced => const Color(0xFFE0A422), // amber (intensity)
       };
 }
 
 // Category accents (kept inside the brand's purple family for cohesion).
-const _cPPL = Color(0xFF8A2BE2);
-const _cUL = Color(0xFF5D3FD3);
+const _cPPL = Color(0xFF00C4A0);
+const _cUL = Color(0xFF00C4A0);
 const _cFull = Color(0xFFCBB2FF);
-const _cPower = Color(0xFF7B68EE);
-const _cBro = Color(0xFF9932CC);
+const _cPower = Color(0xFF00C4A0);
+const _cBro = Color(0xFF00C4A0);
 
 /// Display order for the grouped sections.
 const _categoryOrder = <String>[
@@ -600,7 +600,7 @@ class _TemplateCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: RDStyles.cardGradient,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: RDStyles.hairlineBorder,
       ),
       padding: const EdgeInsets.fromLTRB(15, 14, 15, 13),
@@ -730,7 +730,7 @@ class _LevelPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

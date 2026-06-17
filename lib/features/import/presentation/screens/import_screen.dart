@@ -313,7 +313,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           const SizedBox(height: 16),
           _Banner(
             icon: Icons.add_circle_outline_rounded,
-            color: const Color(0xFFB98CFF),
+            color: const Color(0xFF00C4A0),
             text: _newExercisesText(s.newExerciseNames),
           ),
         ],
@@ -486,7 +486,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
           gradient: RDStyles.cardGradient,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           border: RDStyles.hairlineBorder,
         ),
         clipBehavior: Clip.antiAlias,
@@ -539,9 +539,9 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
         color: AppColors.accentPrimary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Container(
             height: 54,
@@ -572,7 +572,7 @@ class _Banner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -599,9 +599,9 @@ class _IconBadge extends StatelessWidget {
         height: 52,
         decoration: BoxDecoration(
           color: AppColors.accentPrimary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFFB98CFF), size: 26),
+        child: Icon(icon, color: const Color(0xFF00C4A0), size: 26),
       );
 }
 
@@ -654,7 +654,7 @@ class _DetectedPill extends StatelessWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.check_circle_rounded,
-              size: 15, color: Color(0xFFB98CFF)),
+              size: 15, color: Color(0xFF00C4A0)),
           const SizedBox(width: 7),
           Text('Detected: ${source.label}',
               style: GoogleFonts.inter(
@@ -688,7 +688,7 @@ class _UnitChooser extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: active ? AppColors.accentPrimary : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(label,
                 style: GoogleFonts.inter(
@@ -704,7 +704,7 @@ class _UnitChooser extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: RDStyles.cardGradient,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: RDStyles.hairlineBorder,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

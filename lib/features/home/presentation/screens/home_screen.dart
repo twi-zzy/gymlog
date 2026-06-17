@@ -71,7 +71,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: RDStyles.cardGradient,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(12),
                   border: RDStyles.hairlineBorder,
                 ),
                 child: Column(

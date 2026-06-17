@@ -79,10 +79,10 @@ class WorkoutDetailScreen extends ConsumerWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.accentPrimary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.cloud_off_rounded,
-                      color: Color(0xFFB98CFF), size: 24),
+                      color: Color(0xFF00C4A0), size: 24),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -641,7 +641,7 @@ class _MuscleSplitSection extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         color: colorFor(i),
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -723,7 +723,7 @@ class _DetailExerciseCard extends StatelessWidget {
         decoration: BoxDecoration(
           // North-star surface: gradient + hairline, matching Routine cards.
           gradient: RDStyles.cardGradient,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           border: RDStyles.hairlineBorder,
         ),
         clipBehavior: Clip.antiAlias,
@@ -789,7 +789,7 @@ class _ExerciseCardHeader extends StatelessWidget {
             width: 52,
             height: 52,
             fit: BoxFit.cover,
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
           ),
           const SizedBox(width: 12),
           Expanded(

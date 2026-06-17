@@ -116,7 +116,7 @@ class _NavButton extends StatelessWidget {
               width: isActive ? 16 : 0,
               decoration: BoxDecoration(
                 color: AppColors.accentPrimary,
-                borderRadius: BorderRadius.circular(1),
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
           ],

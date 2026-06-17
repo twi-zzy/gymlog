@@ -49,7 +49,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgSheet,
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text('Resume workout?',
             style: GoogleFonts.inter(
                 color: AppColors.textPrimary,

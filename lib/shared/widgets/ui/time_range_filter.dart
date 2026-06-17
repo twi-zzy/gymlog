@@ -70,10 +70,10 @@ class TimeRangeFilter extends ConsumerWidget {
       builder: (sheetCtx) => Container(
         decoration: BoxDecoration(
           color: AppColors.bgSurface.withValues(alpha: 0.95),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Padding(
@@ -87,7 +87,7 @@ class TimeRangeFilter extends ConsumerWidget {
                       height: 4,
                       decoration: BoxDecoration(
                         color: AppColors.textSecondary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
@@ -200,7 +200,7 @@ Future<T?> showBrandedPickerSheet<T>({
     builder: (sheetCtx) => Container(
       decoration: const BoxDecoration(
         color: Color(0xFF121212),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
@@ -214,7 +214,7 @@ Future<T?> showBrandedPickerSheet<T>({
                 height: 4,
                 decoration: BoxDecoration(
                   color: const Color(0xFF6A6A6A),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
               const SizedBox(height: 18),
@@ -255,7 +255,7 @@ Future<T?> showBrandedPickerSheet<T>({
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: opt.color.withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(11),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(opt.icon,
                                       size: 18, color: opt.color),

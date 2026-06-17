@@ -83,7 +83,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Text(
                   displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFB98CFF),
+                    color: const Color(0xFF00C4A0),
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -148,7 +148,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
             decoration: BoxDecoration(
               gradient: RDStyles.cardGradient,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(12),
               border: RDStyles.hairlineBorder,
             ),
             child: Row(
@@ -198,7 +198,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     leading: const Icon(
                       Icons.fitness_center_rounded,
                       size: 16,
-                      color: Color(0xFFB98CFF),
+                      color: Color(0xFF00C4A0),
                     ),
                   ),
                 ),
@@ -253,7 +253,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Container(
             decoration: BoxDecoration(
               gradient: RDStyles.cardGradient,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(12),
               border: RDStyles.hairlineBorder,
             ),
             clipBehavior: Clip.antiAlias,

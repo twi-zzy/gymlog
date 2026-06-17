@@ -36,7 +36,7 @@ Future<void> showWeeklyGoalSheet(BuildContext context, WidgetRef ref) async {
     builder: (sheetCtx) => Container(
       decoration: const BoxDecoration(
         color: Color(0xFF121212),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
@@ -50,7 +50,7 @@ Future<void> showWeeklyGoalSheet(BuildContext context, WidgetRef ref) async {
                 height: 4,
                 decoration: BoxDecoration(
                   color: const Color(0xFF6A6A6A),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
               const SizedBox(height: 20),
@@ -212,7 +212,7 @@ class SettingsScreen extends ConsumerWidget {
                       label: 'Pounds',
                       subtitle: 'lbs',
                       icon: Icons.fitness_center_rounded,
-                      color: Color(0xFFB98CFF),
+                      color: Color(0xFF00C4A0),
                     ),
                   ],
                 );
@@ -250,7 +250,7 @@ class SettingsScreen extends ConsumerWidget {
                             ? Icons.timer_off_outlined
                             : Icons.timer_outlined,
                         color: s == 90
-                            ? const Color(0xFFB98CFF)
+                            ? const Color(0xFF00C4A0)
                             : AppColors.textSecondary,
                       ),
                   ],
@@ -339,7 +339,7 @@ class SettingsScreen extends ConsumerWidget {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               onTap: () async {
                 final confirmed = await showAppConfirmDialog(
                   context: context,
@@ -358,7 +358,7 @@ class SettingsScreen extends ConsumerWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppColors.error.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Sign Out',
@@ -473,7 +473,7 @@ class _Group extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: RDStyles.cardGradient,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: RDStyles.hairlineBorder,
       ),
       clipBehavior: Clip.antiAlias,

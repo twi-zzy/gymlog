@@ -33,7 +33,7 @@ class TogglePill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           color: isActive ? AppColors.accentPrimary : AppColors.borderSubtle,
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 200),

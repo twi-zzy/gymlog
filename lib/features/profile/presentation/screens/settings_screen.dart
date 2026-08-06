@@ -171,6 +171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         showAppSnackBar(
           context,
           message: "Couldn't read your sync setting. The default is shown.",
+          variant: AppSnackBarVariant.error,
         );
       }
     }
@@ -205,6 +206,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       showAppSnackBar(
         context,
         message: "Couldn't change sync. Please try again.",
+        variant: AppSnackBarVariant.error,
       );
     }
   }
@@ -262,7 +264,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           leading: IconButton(
             tooltip: 'Back',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            icon: Icon(Icons.arrow_back_ios_new,
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
                 size: 18, color: surface.textPrimary),
             onPressed: () => context.pop(),
           ),
@@ -283,7 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       children: [
                         if (profile != null) ...[
                           AppActionRow(
-                            icon: Icons.badge_outlined,
+                            icon: Icons.badge_rounded,
                             iconColor: accent.light,
                             title: 'Personal details',
                             subtitle: 'Age, gender, experience & more',
@@ -319,8 +321,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                               HapticFeedback.lightImpact();
                               final service = ref.read(premiumServiceProvider);
                               final info = await service.getCustomerInfo();
-                              final urlString = info?.managementURL;
                               if (!context.mounted) return;
+                              final urlString = info?.managementURL;
                               if (urlString == null) {
                                 showAppSnackBar(
                                   context,
@@ -341,6 +343,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                               showAppSnackBar(
                                 context,
                                 message: "Couldn't open the subscription page.",
+                                variant: AppSnackBarVariant.error,
                               );
                             },
                           ),
@@ -363,6 +366,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                   context,
                                   message:
                                       'Purchases restored successfully. You are now Pro!',
+                                  variant: AppSnackBarVariant.success,
                                 );
                               } else {
                                 showAppSnackBar(
@@ -376,6 +380,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                               showAppSnackBar(
                                 context,
                                 message: 'Restore failed. Please try again.',
+                                variant: AppSnackBarVariant.error,
                               );
                             }
                           },
@@ -409,7 +414,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         const AppActionDivider(),
                         AppActionRow(
                           key: _restTimerRowKey,
-                          icon: Icons.timer_outlined,
+                          icon: Icons.timer_rounded,
                           iconColor: accent.light,
                           title: 'Rest timer',
                           // m:ss, matching the mid-workout rest tile. The old
@@ -423,7 +428,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                         const AppActionDivider(),
                         AppActionRow(
-                          icon: Icons.palette_outlined,
+                          icon: Icons.palette_rounded,
                           iconColor: accent.light,
                           title: 'Appearance',
                           subtitle: 'Accent color',
@@ -436,8 +441,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         const AppActionDivider(),
                         AppActionRow(
                           icon: _notificationsEnabled == false
-                              ? Icons.notifications_off_outlined
-                              : Icons.notifications_outlined,
+                              ? Icons.notifications_off_rounded
+                              : Icons.notifications_rounded,
                           iconColor: accent.light,
                           title: 'Notifications',
                           subtitle: _notificationsEnabled == null
@@ -494,6 +499,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             showAppSnackBar(
                               context,
                               message: 'Exercise media cache cleared',
+                              variant: AppSnackBarVariant.success,
                             );
                           },
                         ),
@@ -528,7 +534,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                   Icons.sync_rounded,
                                   size: 20,
                                   color: syncDegraded
-                                      ? Colors.amber
+                                      ? AppColors.warning
                                       : surface.textSecondary,
                                 ),
                                 const SizedBox(width: 14),
@@ -560,10 +566,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                   ),
                                 ),
                                 if (isPremium)
-                                  Switch.adaptive(
+                                  // N3: branded Material Switch — the last
+                                  // Switch.adaptive was the only stock platform
+                                  // control left in a fully custom surface.
+                                  Switch(
                                     value: _syncEnabled ?? true,
                                     onChanged: (v) => _toggleSync(v),
                                     activeTrackColor: accent.base,
+                                    activeThumbColor: accent.onAccent,
                                   ),
                               ],
                             ),
@@ -587,15 +597,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
+                              color: AppColors.warning.withValues(alpha: 0.1),
+                              borderRadius: AppRadius.cardAll,
                               border: Border.all(
-                                  color: Colors.amber.withValues(alpha: 0.3)),
+                                  color: AppColors.warning
+                                      .withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [
                                 const Icon(Icons.warning_amber_rounded,
-                                    size: 18, color: Colors.amber),
+                                    size: 18, color: AppColors.warning),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -618,7 +629,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     child: Column(
                       children: [
                         AppActionRow(
-                          icon: Icons.help_outline_rounded,
+                          icon: Icons.help_rounded,
                           title: 'Help & feedback',
                           subtitle: 'Report a problem & support portal',
                           onTap: () {
@@ -629,7 +640,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                         const AppActionDivider(),
                         AppActionRow(
-                          icon: Icons.shield_outlined,
+                          icon: Icons.shield_rounded,
                           title: 'Your data',
                           subtitle: isPremium
                               ? 'Stored on-device, backed up to your account'
@@ -638,7 +649,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                         const AppActionDivider(),
                         AppActionRow(
-                          icon: Icons.privacy_tip_outlined,
+                          icon: Icons.privacy_tip_rounded,
                           title: 'Privacy Policy',
                           subtitle: 'Local-first. No tracking.',
                           onTap: () =>
@@ -654,7 +665,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                         const AppActionDivider(),
                         AppActionRow(
-                          icon: Icons.tour_outlined,
+                          icon: Icons.tour_rounded,
                           title: 'Replay app tour',
                           subtitle: 'Walk through the basics again',
                           onTap: () {
@@ -665,35 +676,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           },
                         ),
                         const AppActionDivider(),
+                        // N9: release builds must not attach a dead tap that
+                        // light-impacts then returns. Debug keeps the 5-tap
+                        // Sentry smoke test; release is non-interactive chrome.
                         AppActionRow(
-                          icon: Icons.info_outline_rounded,
+                          icon: Icons.info_rounded,
                           title: 'Version',
                           subtitle: 'GymLog $version',
                           showChevron: false,
-                          onTap: () {
-                            if (!tapGuard()) return;
-                            HapticFeedback.lightImpact();
-                            // Sentry smoke test: five taps throw on purpose.
-                            // DEBUG ONLY. Shipped unguarded, this handed a
-                            // real uncaught StateError to any user curious
-                            // enough to tap the version number five times.
-                            if (!kDebugMode) return;
-                            setState(() {
-                              _devTapCount++;
-                              if (_devTapCount >= 5) {
-                                _devTapCount = 0;
-                                throw StateError(
-                                    'Sentry Diagnostic Controlled Test Error');
-                              }
-                            });
-                          },
+                          onTap: kDebugMode
+                              ? () {
+                                  if (!tapGuard()) return;
+                                  HapticFeedback.lightImpact();
+                                  setState(() {
+                                    _devTapCount++;
+                                    if (_devTapCount >= 5) {
+                                      _devTapCount = 0;
+                                      throw StateError(
+                                          'Sentry Diagnostic Controlled Test Error');
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 28),
-                  _SignOutButton(),
-                  const SizedBox(height: 10),
+                  // N11: session-end is quieter (outline). Permanent delete is
+                  // the sole high-weight destructive action below.
+                  const _SignOutButton(),
+                  const SizedBox(height: 16),
                   Center(
                     child: TextButton(
                       onPressed: () {
@@ -779,7 +792,7 @@ Future<SignOutStrategy?> _showUnsyncedWorkSheet(BuildContext context) {
       children: [
         PrimaryButton(
           label: 'Back up & sign out',
-          icon: Icons.cloud_upload_outlined,
+          icon: Icons.cloud_upload_rounded,
           onPressed: () => choose(SignOutStrategy.signOutAfterSync),
         ),
         const SizedBox(height: 4),
@@ -798,6 +811,8 @@ Future<SignOutStrategy?> _showUnsyncedWorkSheet(BuildContext context) {
 }
 
 class _SignOutButton extends ConsumerWidget {
+  const _SignOutButton();
+
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     if (!tapGuard()) return;
     final user = ref.read(authProvider);
@@ -818,6 +833,7 @@ class _SignOutButton extends ConsumerWidget {
           message: 'Signed out on this device, but some cloud sessions '
               'could not be closed. For your security, sign out of '
               'GymLog on any other device you used.',
+          variant: AppSnackBarVariant.error,
         );
       }
     } else {
@@ -839,6 +855,7 @@ class _SignOutButton extends ConsumerWidget {
             message: 'Signed out on this device, but some cloud '
                 'sessions could not be closed. For your security, sign '
                 'out of GymLog on any other device you used.',
+            variant: AppSnackBarVariant.error,
           );
         }
       }
@@ -847,6 +864,9 @@ class _SignOutButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // N11 hierarchy: session-end is outline + error text — not a filled red
+    // slab competing with Delete account one row below. Permanent purge keeps
+    // the sole high-weight destructive treatment.
     return Semantics(
       container: true,
       button: true,
@@ -864,11 +884,14 @@ class _SignOutButton extends ConsumerWidget {
           borderRadius: AppRadius.cardAll,
           onTap: () => _handleSignOut(context, ref),
           child: Container(
-            height: 52,
+            constraints: const BoxConstraints(minHeight: 52),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.10),
+              color: Colors.transparent,
               borderRadius: AppRadius.cardAll,
+              border: Border.all(
+                color: AppColors.error.withValues(alpha: 0.45),
+              ),
             ),
             child: Text(
               'Sign Out',
@@ -958,6 +981,7 @@ void _openPremium(BuildContext context, {required bool isPremium}) {
     showAppSnackBar(
       context,
       message: 'You are on GymLog Pro. Thanks for the support!',
+      variant: AppSnackBarVariant.success,
     );
   } else {
     showPremiumPaywall(context);
@@ -978,7 +1002,11 @@ Future<void> _exportWorkouts(BuildContext context, WidgetRef ref, String userId,
     ));
   } catch (_) {
     if (!context.mounted) return;
-    showAppSnackBar(context, message: 'Export failed. Please try again.');
+    showAppSnackBar(
+      context,
+      message: 'Export failed. Please try again.',
+      variant: AppSnackBarVariant.error,
+    );
   }
 }
 
@@ -1017,5 +1045,9 @@ Future<void> _openExternalUrl(BuildContext context, String url) async {
     opened = false;
   }
   if (opened || !context.mounted) return;
-  showAppSnackBar(context, message: "Couldn't open the link.");
+  showAppSnackBar(
+    context,
+    message: "Couldn't open the link.",
+    variant: AppSnackBarVariant.error,
+  );
 }

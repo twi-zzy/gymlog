@@ -864,6 +864,7 @@ class _SignOutButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final surface = context.surface;
     // N11 hierarchy: session-end is outline + error text — not a filled red
     // slab competing with Delete account one row below. Permanent purge keeps
     // the sole high-weight destructive treatment.

@@ -22,6 +22,7 @@ import '../../../../core/utils/tap_guard.dart';
 import '../../../../shared/providers/bottom_chrome_provider.dart';
 import '../../../../shared/widgets/premium_paywall.dart';
 import '../../../../shared/widgets/ui/app_action_row.dart';
+import '../../../../shared/widgets/ui/app_button_shell.dart';
 import '../../../../shared/widgets/ui/app_card.dart';
 import '../../../../shared/widgets/ui/app_snack_bar.dart';
 import '../../../../shared/widgets/ui/goal_ring.dart';
@@ -120,22 +121,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  void _openPremium(BuildContext context, {required bool isPremium}) {
-    if (!tapGuard()) return;
-    if (isPremium) {
-      HapticFeedback.lightImpact();
-      // Was a raw ScaffoldMessenger.showSnackBar bypassing showAppSnackBar —
-      // lost the standardized shape/border/2-line clamp/bottom-clearance math
-      // every other snackbar in the app gets (C28).
-      showAppSnackBar(
-        context,
-        message: 'You are on GymLog Pro. Thanks for the support!',
-      );
-    } else {
-      showPremiumPaywall(context);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final workoutCount = ref.watch(workoutCountProvider).valueOrNull ?? 0;
@@ -193,7 +178,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           tooltip: 'Settings',
                           constraints:
                               const BoxConstraints(minWidth: 48, minHeight: 48),
-                          icon: Icon(Icons.settings_outlined,
+                          icon: Icon(Icons.settings_rounded,
                               size: 22, color: surface.textPrimary),
                           onPressed: _openSettings,
                         ),
@@ -245,13 +230,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 28),
                     const _TrainingChartSection(),
                     const SizedBox(height: 28),
-                    _QuickLinks(
-                      isPremium: isPremium,
-                      onPremiumTap: () =>
-                          _openPremium(context, isPremium: isPremium),
-                      onExerciseLibraryTap: _openExerciseLibrary,
-                      onSettingsTap: _openSettings,
-                    ),
+                    // N12: Upgrade to Pro lives in Settings → Account only.
+                    // Profile Quick Links keeps the unique Exercise Library entry.
+                    _QuickLinks(onExerciseLibraryTap: _openExerciseLibrary),
                   ],
                 ),
               );
@@ -373,17 +354,11 @@ class _IdentityHeader extends ConsumerWidget {
                             if (success) {
                               ref.invalidate(currentUserProfileProvider);
                             } else {
-                              // Was: pre-capture messenger/bgSurface, then hand-roll
-                              // a SnackBar via messenger.showSnackBar after the
-                              // await. Re-checking context.mounted here and
-                              // calling showAppSnackBar directly is both the
-                              // modern-lint-correct pattern AND routes through
-                              // the standardized helper (shape/border/clamp/
-                              // clearance) instead of bypassing it (C28).
                               if (!context.mounted) return;
                               showAppSnackBar(
                                 context,
                                 message: "Couldn't save your name. Try again.",
+                                variant: AppSnackBarVariant.error,
                               );
                             }
                           }
@@ -454,11 +429,13 @@ class _IdentityHeader extends ConsumerWidget {
           ),
         ),
         if (isPremium)
+          // N10: same badge spec as Sync paused — fill + border (was border-only).
           Semantics(
             label: 'Pro status active',
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
+                color: surface.surface3,
                 borderRadius: BorderRadius.circular(AppRadius.badge),
                 border: Border.all(color: surface.borderSubtle),
               ),
@@ -642,6 +619,7 @@ class _StatCellError extends StatelessWidget {
   }
 }
 
+/// Shared height with routine detail's _StatDivider (N5) — one geometry.
 class _StatDivider extends StatelessWidget {
   const _StatDivider();
 
@@ -649,7 +627,7 @@ class _StatDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 36,
+      height: 32,
       color: context.surface.borderSubtle,
     );
   }
@@ -857,43 +835,22 @@ class _ChartErrorPlaceholder extends StatelessWidget {
   }
 }
 
+/// N12: single unique quick link. Upgrade to Pro is canonical in Settings.
 class _QuickLinks extends StatelessWidget {
-  final bool isPremium;
-  final VoidCallback onPremiumTap;
   final VoidCallback onExerciseLibraryTap;
-  final VoidCallback onSettingsTap;
 
-  const _QuickLinks({
-    required this.isPremium,
-    required this.onPremiumTap,
-    required this.onExerciseLibraryTap,
-    required this.onSettingsTap,
-  });
+  const _QuickLinks({required this.onExerciseLibraryTap});
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
       radius: AppRadius.card,
       padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          AppActionRow(
-            icon: Icons.workspace_premium_rounded,
-            iconColor: context.accent.light,
-            title: isPremium ? 'GymLog Pro' : 'Upgrade to Pro',
-            subtitle: isPremium
-                ? 'Active (full history unlocked)'
-                : 'Full analytics history & more',
-            onTap: onPremiumTap,
-          ),
-          const AppActionDivider(),
-          AppActionRow(
-            icon: Icons.fitness_center_rounded,
-            title: 'Exercise Library',
-            subtitle: 'Browse exercises, form guides & records',
-            onTap: onExerciseLibraryTap,
-          ),
-        ],
+      child: AppActionRow(
+        icon: Icons.fitness_center_rounded,
+        title: 'Exercise Library',
+        subtitle: 'Browse exercises, form guides & records',
+        onTap: onExerciseLibraryTap,
       ),
     );
   }
@@ -977,12 +934,11 @@ class _LoadingBody extends StatelessWidget {
             radius: AppRadius.card,
             child: Column(
               children: [
-                for (var i = 0; i < 2; i++) ...[
+                for (var i = 0; i < 1; i++) ...[
                   const SkeletonBox(
                       width: double.infinity,
                       height: 48,
                       radius: AppRadius.input),
-                  if (i < 1) const SizedBox(height: 1),
                 ],
               ],
             ),
@@ -1002,6 +958,7 @@ class _ErrorBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = context.surface;
+    final accent = context.accent;
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 4, 16, bottomClearance),
       children: [
@@ -1021,20 +978,25 @@ class _ErrorBody extends StatelessWidget {
                 style: AppText.body(color: surface.textSecondary),
               ),
               const SizedBox(height: 16),
+              // D2 / #3: no fixed height — AppButtonShell minHeight floor.
               SizedBox(
                 width: double.infinity,
-                height: 48,
                 child: ElevatedButton(
                   onPressed: onRetry,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: context.accent.base,
-                    foregroundColor: context.accent.onAccent,
+                    backgroundColor: accent.base,
+                    foregroundColor: accent.onAccent,
                     elevation: 0,
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(AppRadius.buttonPrimary)),
                   ),
-                  child: Text('Retry', style: AppText.button()),
+                  child: AppButtonShell(
+                    label: 'Retry',
+                    style: AppText.button(color: accent.onAccent),
+                    minHeight: 48,
+                  ),
                 ),
               ),
             ],

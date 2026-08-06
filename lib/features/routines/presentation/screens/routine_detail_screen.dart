@@ -208,6 +208,7 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
       showAppSnackBar(
         context,
         message: "Couldn't delete that routine. Try again.",
+        variant: AppSnackBarVariant.error,
       );
       return;
     }
@@ -740,11 +741,13 @@ class _HeroStatStrip extends StatelessWidget {
   }
 }
 
+/// Shared with profile's stats strip — one height so the same name never
+/// means two different geometries (N5).
 class _StatDivider extends StatelessWidget {
   const _StatDivider();
   @override
   Widget build(BuildContext context) =>
-      Container(width: 1, height: 26, color: context.surface.borderSubtle);
+      Container(width: 1, height: 32, color: context.surface.borderSubtle);
 }
 
 class _HeroStat extends StatelessWidget {
@@ -755,14 +758,17 @@ class _HeroStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // N6: FittedBox(scaleDown) was the same WCAG 1.4.4 class as the closed
+    // C31 residual — arbitrary shrink below readable size. Ellipsis keeps
+    // the glyph size honest and truncates the tail instead.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(value,
-              style: AppText.heroStat(shadows: shadows), maxLines: 1),
+        Text(
+          value,
+          style: AppText.heroStat(shadows: shadows),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 3),
         Text(label,

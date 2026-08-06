@@ -24,6 +24,7 @@ import 'package:gymlog/features/profile/presentation/providers/profile_provider.
 import 'package:gymlog/core/providers/settings_provider.dart';
 import 'package:gymlog/features/routines/presentation/widgets/routine_detail_styles.dart';
 import 'package:gymlog/shared/layout/adaptive.dart';
+import 'package:gymlog/shared/widgets/ui/app_snack_bar.dart';
 
 enum _Phase { intro, loading, preview, importing, done }
 
@@ -63,7 +64,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   Future<void> _pickFile() async {
     HapticFeedback.lightImpact();
     setState(() => _error = null);
-    final messenger = ScaffoldMessenger.of(context);
     FilePickerResult? picked;
     try {
       picked = await FilePicker.platform.pickFiles(
@@ -72,7 +72,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         withData: true,
       );
     } catch (_) {
-      messenger.showSnackBar(_snack("Couldn't open the file picker."));
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: "Couldn't open the file picker.",
+        variant: AppSnackBarVariant.error,
+      );
       return;
     }
     if (picked == null || picked.files.isEmpty) return; // cancelled
@@ -86,11 +91,21 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       } else if (file.path != null) {
         content = await File(file.path!).readAsString();
       } else {
-        messenger.showSnackBar(_snack("Couldn't read the file."));
+        if (!mounted) return;
+        showAppSnackBar(
+          context,
+          message: "Couldn't read the file.",
+          variant: AppSnackBarVariant.error,
+        );
         return;
       }
     } catch (_) {
-      messenger.showSnackBar(_snack("Couldn't read the file."));
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: "Couldn't read the file.",
+        variant: AppSnackBarVariant.error,
+      );
       return;
     }
 
@@ -184,7 +199,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   Future<void> _shareTemplate() async {
     HapticFeedback.selectionClick();
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/gymlog_import_template.csv');
@@ -196,17 +210,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             'Fill this CSV with your workouts and import it in GymLog (template matches the app\'s own export format).',
       ));
     } catch (_) {
-      messenger.showSnackBar(_snack("Couldn't share the template."));
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: "Couldn't share the template.",
+        variant: AppSnackBarVariant.error,
+      );
     }
-  }
-
-  SnackBar _snack(String msg) {
-    final surface = context.surface;
-    return SnackBar(
-      content: Text(msg, style: AppText.body(color: surface.textPrimary)),
-      backgroundColor: surface.bgSurface,
-      behavior: SnackBarBehavior.floating,
-    );
   }
 
   @override
@@ -748,38 +758,40 @@ class _SourceChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = context.surface;
-    return Row(children: [
-      for (final s in ImportSource.values) ...[
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            gradient: surface.isLight
-                ? AppColors.cardGradientLight
-                : AppColors.cardGradient,
-            borderRadius: AppRadius.badgeAll,
-            border: Border.all(color: surface.borderSubtle, width: 1),
+    // TEXT SCALING: chips + the trailing note live in a Wrap, not a Row — at
+    // larger OS text scales the fixed chips used to crowd "auto-detected"
+    // into a clip; a Wrap reflows onto a second line instead of overflowing
+    // (ship-readiness #3). Identical pixels wherever everything fits.
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final s in ImportSource.values)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              gradient: surface.isLight
+                  ? AppColors.cardGradientLight
+                  : AppColors.cardGradient,
+              borderRadius: AppRadius.badgeAll,
+              border: Border.all(color: surface.borderSubtle, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.fitness_center_rounded,
+                    size: 15, color: surface.textSecondary),
+                const SizedBox(width: 8),
+                Text(s.label,
+                    style: AppText.statLabel(color: surface.textPrimary)),
+              ],
+            ),
           ),
-          child: Row(children: [
-            Icon(Icons.fitness_center_rounded,
-                size: 15, color: surface.textSecondary),
-            const SizedBox(width: 8),
-            Text(s.label,
-                style: AppText.statLabel(
-                  color: surface.textPrimary,
-                ).copyWith(
-                  fontSize: 13.5,
-                )),
-          ]),
-        ),
-        const SizedBox(width: 10),
+        Text('auto-detected',
+            style: AppText.caption(color: surface.textTertiary)),
       ],
-      Expanded(
-        child: Text('auto-detected',
-            style: AppText.caption(
-              color: surface.textTertiary,
-            )),
-      ),
-    ]);
+    );
   }
 }
 

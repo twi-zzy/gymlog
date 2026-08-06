@@ -9,7 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:gymlog/core/exercises/body_map.dart';
 import 'package:gymlog/features/auth/presentation/providers/tour_provider.dart';
 import 'package:gymlog/features/profile/presentation/providers/profile_provider.dart';
-import 'package:gymlog/shared/widgets/body/muscle_summary.dart';
+import 'package:gymlog/shared/widgets/body/muscle_load_bar.dart';
 import 'package:gymlog/shared/widgets/tour/spotlight_tour_overlay.dart';
 
 import 'package:gymlog/core/database/daos/routines_dao.dart';
@@ -29,6 +29,7 @@ import 'package:gymlog/features/workout/presentation/providers/active_workout_pr
 import 'package:gymlog/shared/widgets/async_error_state.dart';
 import 'package:gymlog/shared/widgets/premium_paywall.dart';
 import 'package:gymlog/shared/widgets/ui/action_bottom_sheet.dart';
+import 'package:gymlog/shared/widgets/ui/app_button_shell.dart';
 import 'package:gymlog/shared/widgets/ui/app_dialog.dart';
 import 'package:gymlog/shared/widgets/ui/app_snack_bar.dart';
 import 'package:gymlog/shared/widgets/ui/app_refresh_indicator.dart';
@@ -49,9 +50,10 @@ final DateFormat _monthDay = DateFormat('MMM d');
 /// RoutineDetailScreen — the launchpad for a saved routine: one dominant Start
 /// CTA, a personal stat line, a volume trend, and the exercise set tables.
 ///
-/// Muscle coverage is shown as a one-line [MuscleSummaryStrip] rather than an
-/// inline anatomical map. See muscle_summary.dart for why: the map is low
-/// re-read-rate reference content and was consuming the space where the
+/// Muscle coverage is shown as a one-line [MuscleLoadBar] — a stacked
+/// proportional bar rather than an inline anatomical map or a scrolling chip
+/// strip. See muscle_load_bar.dart / muscle_summary.dart for why: the map is
+/// low re-read-rate reference content and was consuming the space where the
 /// exercise list should start.
 class RoutineDetailScreen extends ConsumerStatefulWidget {
   final String routineId;
@@ -457,8 +459,9 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
                   children: [
                     const SkeletonBox(width: 200, height: 16),
                     const SizedBox(height: 16),
-                    // Matches the 44dp muscle strip, not the old ~400dp map.
-                    const SkeletonBox(height: 44, radius: AppRadius.badge),
+                    // Matches the ~46dp muscle load bar (8 bar + legend),
+                    // not the old 44dp chip strip or the ~400dp inline map.
+                    const SkeletonBox(height: 46, radius: AppRadius.badge),
                     const SizedBox(height: 24),
                     const SkeletonBox(height: 198, radius: AppRadius.card),
                     const SizedBox(height: 24),
@@ -531,11 +534,39 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
   return (primary: primary, secondary: secondary);
 }
 
-/// Muscle coverage, compressed to one row.
-///
-/// Previously this rendered a "Muscles Worked" heading plus a full front/back
-/// [MuscleMap] inline. The heading is gone too: the chips name the muscles
-/// themselves, so a label above them was pure redundancy.
+/// Ranked load shares for the [MuscleLoadBar]: each group's share of the
+/// routine's working sets. Primary groups score full set count, secondaries
+/// half (assistance work is real but not equal) — deterministic, so the bar
+/// never reshuffles between builds.
+List<MuscleLoadEntry> _loadEntriesForRoutine(HydratedRoutineDetail routine) {
+  final groups = _workedGroupsForRoutine(routine);
+  final load = <String, double>{};
+  for (final he in routine.exercises) {
+    final ex = he.exercise;
+    final sec =
+        (jsonDecode(ex.secondaryMuscles ?? '[]') as List).cast<String>();
+    final worked = workedGroupsFor(target: ex.target, secondary: sec);
+    final setCount = he.config.defaultSets.toDouble();
+    for (final g in worked.primary) {
+      load[g] = (load[g] ?? 0) + setCount;
+    }
+    for (final g in worked.secondary) {
+      if (!groups.primary.contains(g)) {
+        load[g] = (load[g] ?? 0) + setCount * 0.5;
+      }
+    }
+  }
+  final total = load.values.fold<double>(0, (a, b) => a + b);
+  if (total <= 0) return const [];
+  final sorted = load.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return [
+    for (final e in sorted) MuscleLoadEntry(e.key, e.value / total),
+  ];
+}
+
+/// Muscle coverage as one glanceable [MuscleLoadBar]: proportion of working
+/// sets per group, not a scrolling membership list. Tap → full map sheet.
 class _MusclesWorkedStrip extends ConsumerWidget {
   final HydratedRoutineDetail routine;
   const _MusclesWorkedStrip({required this.routine});
@@ -543,14 +574,16 @@ class _MusclesWorkedStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groups = _workedGroupsForRoutine(routine);
-    if (groups.primary.isEmpty && groups.secondary.isEmpty) {
+    final entries = _loadEntriesForRoutine(routine);
+    if (entries.isEmpty) {
       return const SizedBox.shrink();
     }
     final gender =
         ref.watch(currentUserProfileProvider).valueOrNull?.gender ?? 'male';
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: MuscleSummaryStrip(
+      child: MuscleLoadBar(
+        entries: entries,
         primaryGroups: groups.primary,
         secondaryGroups: groups.secondary,
         gender: gender,
@@ -768,26 +801,22 @@ class _StartRoutineButton extends StatelessWidget {
       child: GestureDetector(
         onTap: _onTap,
         child: Container(
-          height: 52,
           width: double.infinity,
           decoration: BoxDecoration(
             color: empty ? surface.surface3 : accent.base,
             borderRadius: AppRadius.buttonPrimaryAll,
           ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(empty ? Icons.add_rounded : Icons.play_arrow_rounded,
-                  color: empty ? surface.textSecondary : accent.onAccent,
-                  size: 22),
-              const SizedBox(width: 8),
-              Text(
-                empty ? 'Add an exercise' : 'Start Routine',
-                style: AppText.button(
-                    color: empty ? surface.textSecondary : accent.onAccent),
-              ),
-            ],
+          // TEXT SCALING: no fixed `height:` — the shell enforces the 52dp
+          // floor as a row child that can grow, and the label sits in
+          // Flexible+ellipsis (ship-readiness #3).
+          child: AppButtonShell(
+            label: empty ? 'Add an exercise' : 'Start Routine',
+            style: AppText.button(
+                color: empty ? surface.textSecondary : accent.onAccent),
+            icon: empty ? Icons.add_rounded : Icons.play_arrow_rounded,
+            iconSize: 22,
+            iconColor: empty ? surface.textSecondary : accent.onAccent,
+            minHeight: 52,
           ),
         ),
       ),

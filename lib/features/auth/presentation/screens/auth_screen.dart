@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,7 +127,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
 
     final textScale = context.adaptive.textScaleFactor;
-    final double topPadding = textScale >= 1.6 ? 12 : 24;
+    // COMPACT MODE (ship-readiness #10): the phantom few-px scroll came from
+    // the Column's minimum intrinsic height exceeding SliverFillRemaining's
+    // remaining extent on short viewports / large text scales — the Spacer
+    // can only distribute surplus, never deficit. Compressing the fixed gaps
+    // brings the minimum back under the extent; ClampingScrollPhysics below
+    // means even a device-specific edge case can never bounce-reveal itself.
+    final compact =
+        textScale >= 1.6 || MediaQuery.sizeOf(context).height < 640;
+    final double topPadding = compact ? 12 : 24;
+    final double gapAfterBrand = compact ? 12 : 24;
+    final double gapBeforeButton = compact ? 12 : 24;
+    final double gapBeforeLegal = compact ? 9 : 18;
 
     final secondaryColor =
         surface.isLight ? const Color(0xFF555555) : surface.textSecondary;
@@ -355,6 +368,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     maxWidth: context.adaptive.contentMaxWidth,
                   ),
                   child: CustomScrollView(
+                    // No bounce: the residual few-px overflow on odd viewports
+                    // can never reveal itself by rubber-banding (see compact
+                    // mode above for the actual overflow fix).
+                    physics: const ClampingScrollPhysics(),
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
                     slivers: [
@@ -365,16 +382,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              brandBlock,
-                              const SizedBox(height: 24),
+                              _EntranceFade(child: brandBlock),
+                              SizedBox(height: gapAfterBrand),
                               const Spacer(),
-                              trustBlock,
-                              const SizedBox(height: 24),
-                              signInButton,
+                              _EntranceFade(
+                                delay: const Duration(milliseconds: 80),
+                                child: trustBlock,
+                              ),
+                              SizedBox(height: gapBeforeButton),
+                              _EntranceFade(
+                                delay: const Duration(milliseconds: 160),
+                                child: signInButton,
+                              ),
                               const SizedBox(height: 4),
                               if (_isSigningIn) cancelButton,
-                              const SizedBox(height: 18),
-                              legalBlock,
+                              SizedBox(height: gapBeforeLegal),
+                              _EntranceFade(
+                                delay: const Duration(milliseconds: 220),
+                                child: legalBlock,
+                              ),
                             ],
                           ),
                         ),
@@ -391,8 +417,98 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 }
 
-class _AuthAtmosphere extends StatelessWidget {
+/// One-shot fade + 12dp rise for the auth screen's staggered entrance.
+/// Runs once on mount; skipped entirely under reduce-motion.
+class _EntranceFade extends StatelessWidget {
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+
+  const _EntranceFade({
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 500),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final total = duration + delay;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: total,
+      curve: Interval(
+        delay.inMilliseconds / total.inMilliseconds,
+        1.0,
+        curve: Curves.easeOutCubic,
+      ),
+      child: child,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// The ambient auth backdrop: two accent blobs on a slow Lissajous drift,
+/// opacity breathing out of phase with position so the loop never reads as
+/// a loop. One [CustomPainter], one layer — no widget-tree rebuilds. The
+/// controller stops when the app is backgrounded (a running animation
+/// behind a paused app is a battery bug) and freezes under reduce-motion.
+class _AuthAtmosphere extends StatefulWidget {
   const _AuthAtmosphere();
+
+  @override
+  State<_AuthAtmosphere> createState() => _AuthAtmosphereState();
+}
+
+class _AuthAtmosphereState extends State<_AuthAtmosphere>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  late final AnimationController _drift;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _drift = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 14),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncMotion();
+  }
+
+  void _syncMotion() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _drift.stop();
+    } else if (!_drift.isAnimating) {
+      _drift.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _drift.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      _syncMotion();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _drift.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -401,47 +517,84 @@ class _AuthAtmosphere extends StatelessWidget {
 
     return IgnorePointer(
       child: RepaintBoundary(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: surface.bgBase),
-            Align(
-              alignment: const Alignment(0, -0.72),
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      accent.glow.withValues(alpha: 0.65),
-                      Colors.transparent,
-                    ],
-                    stops: const [0, 1],
-                  ),
-                ),
-              ),
+        child: ColoredBox(
+          color: surface.bgBase,
+          child: CustomPaint(
+            painter: _AtmospherePainter(
+              animation: _drift,
+              glowColor: accent.glow,
+              mutedColor: accent.muted,
             ),
-            Align(
-              alignment: const Alignment(-0.9, 0.95),
-              child: Container(
-                width: 320,
-                height: 220,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      accent.muted.withValues(alpha: 0.45),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+            child: const SizedBox.expand(),
+          ),
         ),
       ),
     );
   }
+}
+
+class _AtmospherePainter extends CustomPainter {
+  final Animation<double> animation;
+  final Color glowColor;
+  final Color mutedColor;
+
+  _AtmospherePainter({
+    required this.animation,
+    required this.glowColor,
+    required this.mutedColor,
+  }) : super(repaint: animation);
+
+  void _blob(
+    Canvas canvas,
+    Size size,
+    Alignment align,
+    double w,
+    double h,
+    Color color,
+    double alpha,
+  ) {
+    final center = align.withinRect(Offset.zero & size);
+    final rect = Rect.fromCenter(center: center, width: w, height: h);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)],
+        ).createShader(rect),
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final phase = 2 * math.pi * animation.value;
+    // Same positions as the old static blobs, plus a small closed-loop drift.
+    _blob(
+      canvas,
+      size,
+      Alignment(0.10 * math.sin(phase), -0.72 + 0.06 * math.cos(phase)),
+      260,
+      260,
+      glowColor,
+      0.65 + 0.10 * math.sin(phase + 1.7),
+    );
+    _blob(
+      canvas,
+      size,
+      Alignment(
+        -0.9 + 0.08 * math.cos(phase * 0.5 + 1.3),
+        0.95 + 0.05 * math.sin(phase * 0.5 + 1.3),
+      ),
+      320,
+      220,
+      mutedColor,
+      0.45 + 0.08 * math.sin(phase + 3.4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_AtmospherePainter oldDelegate) =>
+      oldDelegate.glowColor != glowColor ||
+      oldDelegate.mutedColor != mutedColor;
 }
 
 class _LegalLink extends StatelessWidget {

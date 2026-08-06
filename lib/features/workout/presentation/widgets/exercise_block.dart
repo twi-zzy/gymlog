@@ -128,228 +128,233 @@ class ExerciseBlock extends ConsumerWidget {
         ref.watch(previousSessionSetsProvider(exerciseId)).valueOrNull ??
             const [];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-      child: Container(
-        decoration: BoxDecoration(
-          color: surface.surface2,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.07),
-            width: 1.0,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ──────────────────────────
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox.square(
-                  dimension: 48,
-                  child: de != null
-                      ? ExerciseHeroThumb(
-                          exercise: de,
-                          size: 48,
-                          enableHero: enableHero,
-                        )
-                      : const ExerciseThumbnail(gifUrl: null, size: 48),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: de != null
-                            ? () => context.push('/exercise/detail/${de.id}',
-                                extra: de)
-                            : null,
-                        child: Text(
-                          exerciseName,
-                          style: AppText.sheetTitle(color: surface.textPrimary),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: CompactRestChip(
-                          exerciseIndex: exerciseIndex,
-                          exerciseName: exerciseName,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox.square(
-                  dimension: 48,
-                  child: IconButton(
-                    tooltip: 'Exercise options',
-                    padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_horiz_rounded,
-                        color: surface.textSecondary, size: 20),
-                    onPressed: () => _showMenu(context, exerciseName),
-                  ),
-                ),
-              ],
+    // RepaintBoundary: while any field in this card is being edited, the
+    // card's repaints must not dirty the rest of the workout list (#1B).
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surface.surface2,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.07),
+              width: 1.0,
             ),
-            const SizedBox(height: 16),
-
-            // ── Column labels — the header is a SetTableRow, so its centre
-            // lines are the data rows' centre lines BY CONSTRUCTION (they
-            // share inset, widths and flex via set_table_layout.dart). The
-            // 22dp minHeight stays a minimum: AppText.columnHeader (11sp)
-            // needs ~29px at the 200% accessibility budget, so the strip
-            // grows there instead of overflowing (do not pin to a fixed
-            // height — see ship-readiness #6).
-            SetTableRow(
-              minHeight: 22,
-              setSlot: Text('SET',
-                  style: AppText.columnHeader(color: surface.textSecondary)),
-              previousSlot: Text('PREVIOUS',
-                  style: AppText.columnHeader(color: surface.textSecondary)),
-              weightSlot: !mType.showsWeightColumn
-                  ? const SizedBox.shrink()
-                  : Center(
-                      child: Semantics(
-                        button: onUnitTap != null && mType.requiresWeight,
-                        label: mType.requiresWeight
-                            ? 'Weight unit ${unit.toUpperCase()}, tap to change'
-                            : 'Distance column',
-                        child: GestureDetector(
-                          onTap: (mType.requiresWeight && onUnitTap != null)
-                              ? () {
-                                  HapticFeedback.selectionClick();
-                                  onUnitTap!();
-                                }
+          ),
+          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox.square(
+                    dimension: 48,
+                    child: de != null
+                        ? ExerciseHeroThumb(
+                            exercise: de,
+                            size: 48,
+                            enableHero: enableHero,
+                          )
+                        : const ExerciseThumbnail(gifUrl: null, size: 48),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: de != null
+                              ? () => context.push('/exercise/detail/${de.id}',
+                                  extra: de)
                               : null,
-                          behavior: HitTestBehavior.opaque,
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  mType.isDistance
-                                      ? Icons.straighten_rounded
-                                      : Icons.fitness_center_rounded,
-                                  size: 11,
-                                  color: surface.textSecondary,
-                                ),
-                                const SizedBox(width: 3),
-                                Flexible(
-                                  child: Text(
-                                    mType.fixedWeightColumnLabel ??
-                                        unit.toUpperCase(),
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.columnHeader(
-                                        color: surface.textSecondary),
+                          child: Text(
+                            exerciseName,
+                            style:
+                                AppText.sheetTitle(color: surface.textPrimary),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: CompactRestChip(
+                            exerciseIndex: exerciseIndex,
+                            exerciseName: exerciseName,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox.square(
+                    dimension: 48,
+                    child: IconButton(
+                      tooltip: 'Exercise options',
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.more_horiz_rounded,
+                          color: surface.textSecondary, size: 20),
+                      onPressed: () => _showMenu(context, exerciseName),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Column labels — the header is a SetTableRow, so its centre
+              // lines are the data rows' centre lines BY CONSTRUCTION (they
+              // share inset, widths and flex via set_table_layout.dart). The
+              // 22dp minHeight stays a minimum: AppText.columnHeader (11sp)
+              // needs ~29px at the 200% accessibility budget, so the strip
+              // grows there instead of overflowing (do not pin to a fixed
+              // height — see ship-readiness #6).
+              SetTableRow(
+                minHeight: 22,
+                setSlot: Text('SET',
+                    style: AppText.columnHeader(color: surface.textSecondary)),
+                previousSlot: Text('PREVIOUS',
+                    style: AppText.columnHeader(color: surface.textSecondary)),
+                weightSlot: !mType.showsWeightColumn
+                    ? const SizedBox.shrink()
+                    : Center(
+                        child: Semantics(
+                          button: onUnitTap != null && mType.requiresWeight,
+                          label: mType.requiresWeight
+                              ? 'Weight unit ${unit.toUpperCase()}, tap to change'
+                              : 'Distance column',
+                          child: GestureDetector(
+                            onTap: (mType.requiresWeight && onUnitTap != null)
+                                ? () {
+                                    HapticFeedback.selectionClick();
+                                    onUnitTap!();
+                                  }
+                                : null,
+                            behavior: HitTestBehavior.opaque,
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                minWidth: 48,
+                                minHeight: 48,
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    mType.isDistance
+                                        ? Icons.straighten_rounded
+                                        : Icons.fitness_center_rounded,
+                                    size: 11,
+                                    color: surface.textSecondary,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      mType.fixedWeightColumnLabel ??
+                                          unit.toUpperCase(),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppText.columnHeader(
+                                          color: surface.textSecondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-              repsSlot: Center(
-                child: Text(
-                  mType.repsColumnLabel,
-                  style: AppText.columnHeader(color: surface.textSecondary),
+                repsSlot: Center(
+                  child: Text(
+                    mType.repsColumnLabel,
+                    style: AppText.columnHeader(color: surface.textSecondary),
+                  ),
+                ),
+                checkSlot: Center(
+                  child: Icon(Icons.check_rounded,
+                      size: 16, color: surface.textSecondary),
                 ),
               ),
-              checkSlot: Center(
-                child: Icon(Icons.check_rounded,
-                    size: 16, color: surface.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 4),
+              const SizedBox(height: 4),
 
-            // ── Sets ──
-            ...setIds.asMap().entries.map((entry) {
-              final setIndex = entry.key;
-              final setId = entry.value;
-              return Consumer(
-                key: ValueKey(setId),
-                builder: (context, ref, child) {
-                  final setData =
-                      ref.watch(activeWorkoutProvider.select((state) {
-                    if (state == null ||
-                        exerciseIndex >= state.exercises.length) {
-                      return null;
-                    }
-                    final ex = state.exercises[exerciseIndex];
-                    if (setIndex >= ex.sets.length) return null;
-                    return ex.sets[setIndex];
-                  }));
-                  if (setData == null) return const SizedBox.shrink();
+              // ── Sets ──
+              ...setIds.asMap().entries.map((entry) {
+                final setIndex = entry.key;
+                final setId = entry.value;
+                return Consumer(
+                  key: ValueKey(setId),
+                  builder: (context, ref, child) {
+                    final setData =
+                        ref.watch(activeWorkoutProvider.select((state) {
+                      if (state == null ||
+                          exerciseIndex >= state.exercises.length) {
+                        return null;
+                      }
+                      final ex = state.exercises[exerciseIndex];
+                      if (setIndex >= ex.sets.length) return null;
+                      return ex.sets[setIndex];
+                    }));
+                    if (setData == null) return const SizedBox.shrink();
 
-                  final prevSet = setIndex < previousSets.length
-                      ? previousSets[setIndex]
-                      : null;
+                    final prevSet = setIndex < previousSets.length
+                        ? previousSets[setIndex]
+                        : null;
 
-                  final row = SetRow(
-                    key: ValueKey(setData.id),
-                    setIndex: setIndex,
-                    setData: setData,
-                    measurementType: mType,
-                    previousWeight: prevSet?.weightKg,
-                    previousReps: prevSet?.reps,
-                    unit: unit,
-                    onChanged: onSetChanged,
-                    onToggleComplete: () => onToggleSetCompletion(setIndex),
-                  );
+                    final row = SetRow(
+                      key: ValueKey(setData.id),
+                      setIndex: setIndex,
+                      setData: setData,
+                      measurementType: mType,
+                      previousWeight: prevSet?.weightKg,
+                      previousReps: prevSet?.reps,
+                      unit: unit,
+                      onChanged: onSetChanged,
+                      onToggleComplete: () => onToggleSetCompletion(setIndex),
+                    );
 
-                  return Dismissible(
-                    key: ValueKey(setData.id),
-                    direction: setData.isCompleted
-                        ? DismissDirection.none
-                        : DismissDirection.endToStart,
-                    dismissThresholds: const {
-                      DismissDirection.endToStart: 0.55,
-                    },
-                    confirmDismiss: (_) async {
-                      HapticFeedback.heavyImpact(); // feel the danger first
-                      return true;
-                    },
-                    onDismissed: (_) => onRemoveSet(setIndex),
-                    background: Container(
-                      color: AppColors.error.withValues(alpha: 0.85),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 22),
-                      child: Icon(Icons.delete_outline_rounded,
-                          color: surface.textPrimary, size: 20),
-                    ),
-                    child: row,
-                  );
-                },
-              );
-            }),
-
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: SizedBox(
-                height: 50,
-                child: SecondaryButton(
-                  label: '+ Add Set',
-                  accent: true,
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    onAddSet();
+                    return Dismissible(
+                      key: ValueKey(setData.id),
+                      direction: setData.isCompleted
+                          ? DismissDirection.none
+                          : DismissDirection.endToStart,
+                      dismissThresholds: const {
+                        DismissDirection.endToStart: 0.55,
+                      },
+                      confirmDismiss: (_) async {
+                        HapticFeedback.heavyImpact(); // feel the danger first
+                        return true;
+                      },
+                      onDismissed: (_) => onRemoveSet(setIndex),
+                      background: Container(
+                        color: AppColors.error.withValues(alpha: 0.85),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 22),
+                        child: Icon(Icons.delete_outline_rounded,
+                            color: surface.textPrimary, size: 20),
+                      ),
+                      child: row,
+                    );
                   },
+                );
+              }),
+
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  height: 50,
+                  child: SecondaryButton(
+                    label: '+ Add Set',
+                    accent: true,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      onAddSet();
+                    },
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

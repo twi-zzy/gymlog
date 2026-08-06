@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -48,6 +50,18 @@ const Color _kCompletionRowTint = Color(0x0F34C759);
 /// at four sets per exercise and six exercises per session, 48 outlined boxes
 /// turn a set table into a form. The row surface, the column headers, and the
 /// cursor carry all the affordance that is needed — see [_numberField].
+///
+/// ## Input pipeline (ship-readiness #1B)
+///
+/// The [TextEditingController] is authoritative during an edit. Every
+/// keystroke used to write straight into activeWorkoutProvider — a
+/// whole-workout-tree rebuild plus a 200ms AnimatedContainer re-drive per
+/// character, which is exactly what typing "not smooth" feels like. Now the
+/// provider receives the COMMITTED value 250ms after the last keystroke, or
+/// immediately at any of the exhaustive flush points: focus loss, completion
+/// tap, measurement-type change, or disposal (navigation). Validation and
+/// backfill read [_effectiveSetData] — the in-flight value, never the stale
+/// prop — so nothing the user typed can be lost or second-guessed.
 class SetRow extends StatefulWidget {
   final int setIndex;
   final WorkoutSetState setData;
@@ -92,6 +106,37 @@ class _SetRowState extends State<SetRow> {
   /// signal which value is missing (instead of a silent non-response).
   bool _showValidationHint = false;
 
+  /// The in-flight edit not yet committed to the provider (see class doc).
+  Timer? _commitTimer;
+  WorkoutSetState? _pendingCommit;
+
+  /// What logic must read: the user's actual current value — pending edit if
+  /// one exists, else the provider's prop. Reading widget.setData directly
+  /// during a debounced edit would validate/backfill against a stale value.
+  WorkoutSetState get _effectiveSetData => _pendingCommit ?? widget.setData;
+
+  void _queueCommit(WorkoutSetState next) {
+    _pendingCommit = next;
+    _commitTimer?.cancel();
+    _commitTimer = Timer(const Duration(milliseconds: 250), _flushCommit);
+  }
+
+  /// Commit the in-flight value NOW. Called at every exit from the edit:
+  /// 250ms idle, focus loss, completion tap, and dispose.
+  void _flushCommit() {
+    _commitTimer?.cancel();
+    _commitTimer = null;
+    final pending = _pendingCommit;
+    _pendingCommit = null;
+    if (pending != null && pending != widget.setData) {
+      widget.onChanged(pending);
+    }
+  }
+
+  void _flushOnFocusLoss() {
+    if (!_weightFocus.hasFocus && !_repsFocus.hasFocus) _flushCommit();
+  }
+
   // ── Formatting ────────────────────────────────────────────────────────────
 
   /// Formats a stored value for display in the weight-slot field.
@@ -121,6 +166,8 @@ class _SetRowState extends State<SetRow> {
     _repsController = TextEditingController(
       text: widget.setData.reps > 0 ? widget.setData.reps.toString() : '',
     );
+    _weightFocus.addListener(_flushOnFocusLoss);
+    _repsFocus.addListener(_flushOnFocusLoss);
   }
 
   @override
@@ -129,9 +176,13 @@ class _SetRowState extends State<SetRow> {
 
     // ── Measurement type changed ──────────────────────────────────────────
     // This can happen when the catalog resolves after exercise addition, or
-    // when replaceExercise creates a new widget on the same key. Reset
-    // controllers that are no longer applicable for the new type.
+    // when replaceExercise creates a new widget on the same key. The type
+    // change is authoritative: discard any in-flight edit from the old type
+    // and reset controllers that are no longer applicable.
     if (widget.measurementType != oldWidget.measurementType) {
+      _commitTimer?.cancel();
+      _commitTimer = null;
+      _pendingCommit = null;
       if (!widget.measurementType.showsWeightColumn) {
         _weightController.text = '';
       } else if (!_weightFocus.hasFocus) {
@@ -170,6 +221,9 @@ class _SetRowState extends State<SetRow> {
 
   @override
   void dispose() {
+    // Navigating away or closing mid-debounce must persist the in-flight
+    // value — this is the flush point that makes the debounce lossless.
+    _flushCommit();
     _weightController.dispose();
     _repsController.dispose();
     _weightFocus.dispose();
@@ -182,8 +236,8 @@ class _SetRowState extends State<SetRow> {
   // Whether the set has enough data to be marked complete.
   bool get _canComplete => canCompleteSetRaw(
         measurementType: widget.measurementType,
-        weightKg: widget.setData.weightKg,
-        reps: widget.setData.reps,
+        weightKg: _effectiveSetData.weightKg,
+        reps: _effectiveSetData.reps,
         previousWeight: widget.previousWeight,
         previousReps: widget.previousReps,
       );
@@ -193,13 +247,14 @@ class _SetRowState extends State<SetRow> {
   bool get _weightShouldFlash =>
       _showValidationHint &&
       widget.measurementType.showsWeightColumn &&
-      (widget.setData.weightKg == null || widget.setData.weightKg! <= 0) &&
+      (_effectiveSetData.weightKg == null ||
+          _effectiveSetData.weightKg! <= 0) &&
       widget.previousWeight == null;
 
   bool get _repsShouldFlash =>
       _showValidationHint &&
       widget.measurementType.showsRepsColumn &&
-      widget.setData.reps <= 0 &&
+      _effectiveSetData.reps <= 0 &&
       widget.previousReps == null;
 
   // ── Previous-session label ────────────────────────────────────────────────
@@ -506,8 +561,8 @@ class _SetRowState extends State<SetRow> {
                   flashHint: _weightShouldFlash,
                   onChanged: (val) {
                     if (val.trim().isEmpty) {
-                      widget.onChanged(
-                          widget.setData.copyWith(weightKg: null));
+                      _queueCommit(
+                          _effectiveSetData.copyWith(weightKg: null));
                       return;
                     }
                     final parsed = double.tryParse(val);
@@ -519,20 +574,22 @@ class _SetRowState extends State<SetRow> {
                           ? parsed.clamp(0.0, 99999.0)
                           : displayToKg(parsed, widget.unit)
                               .clamp(0.0, 999.5);
-                      widget.onChanged(
-                          widget.setData.copyWith(weightKg: stored));
+                      _queueCommit(
+                          _effectiveSetData.copyWith(weightKg: stored));
                     }
                   },
                 ),
 
           // ── REPS / SECS — hidden for distance ───────────────────────
+          // Keyboard flow (P1.3): reps keeps the DEFAULT `next` action, so
+          // submit chains weight → reps → next row's weight with zero
+          // keyboard dismissals across a whole exercise.
           repsSlot: !widget.measurementType.showsRepsColumn
               ? const SizedBox.shrink()
               : _numberField(
                   controller: _repsController,
                   focusNode: _repsFocus,
                   isDecimal: false,
-                  action: TextInputAction.done,
                   semanticLabel:
                       widget.measurementType.repsFieldSemanticLabel,
                   hintText: widget.previousReps != null
@@ -541,12 +598,12 @@ class _SetRowState extends State<SetRow> {
                   flashHint: _repsShouldFlash,
                   onChanged: (val) {
                     if (val.trim().isEmpty) {
-                      widget.onChanged(widget.setData.copyWith(reps: 0));
+                      _queueCommit(_effectiveSetData.copyWith(reps: 0));
                       return;
                     }
                     final parsed = int.tryParse(val);
                     if (parsed != null) {
-                      widget.onChanged(widget.setData
+                      _queueCommit(_effectiveSetData
                           .copyWith(reps: parsed.clamp(0, 99999)));
                     }
                   },
@@ -635,8 +692,16 @@ class _SetRowState extends State<SetRow> {
       if (mounted) _completing = false;
     });
 
-    if (!widget.setData.isCompleted) {
-      var next = widget.setData;
+    // Commit any in-flight keystrokes synchronously, then validate/backfill
+    // against THAT value — never the stale prop. A user who types "100" and
+    // taps ✓ within the debounce window must have 100 validated, not
+    // backfilled over.
+    final pending = _pendingCommit;
+    _flushCommit();
+    final base = pending ?? widget.setData;
+
+    if (!base.isCompleted) {
+      var next = base;
       // Backfill weight-slot from previous session if still empty.
       if (widget.measurementType.showsWeightColumn &&
           (next.weightKg == null || next.weightKg! <= 0) &&
@@ -651,7 +716,7 @@ class _SetRowState extends State<SetRow> {
         next = next.copyWith(reps: widget.previousReps!);
         _repsController.text = widget.previousReps!.toString();
       }
-      if (next != widget.setData) widget.onChanged(next);
+      if (next != base) widget.onChanged(next);
     }
     widget.onToggleComplete();
   }

@@ -79,19 +79,20 @@ serve(async (req) => {
   ];
   const text = lines.filter((l) => l !== "").join("\n");
 
-  const tg = await fetch(
-    `{{https://api.telegram.org/bot${BOT_TOKEN}}}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-      }),
-    },
-  );
+  // NOTE: plain string concatenation, not a template literal — see commit
+  // history. This line is deliberately boring.
+  const telegramApiUrl =
+    "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
+  const tg = await fetch(telegramApiUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    }),
+  });
 
   if (!tg.ok) {
     return new Response("Upstream failed", { status: 502 });

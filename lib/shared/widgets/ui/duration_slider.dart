@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,12 +50,30 @@ class DurationSlider extends StatefulWidget {
   State<DurationSlider> createState() => _DurationSliderState();
 }
 
-class _DurationSliderState extends State<DurationSlider> {
+class _DurationSliderState extends State<DurationSlider>
+    with SingleTickerProviderStateMixin {
   static const double _trackHeight = 6;
   static const double _thumbSize = 28;
   static const double _hitHeight = 56;
 
   bool _dragging = false;
+
+  /// Thumb press-grow animation (28 → 34 on a spring curve).
+  late final AnimationController _press;
+
+  /// The last value this widget actually emitted. `widget.valueSeconds` can
+  /// lag one frame behind a gesture (the parent rebuild has not landed yet),
+  /// so end-of-gesture callbacks must read this, never the prop — the old
+  /// `onTapUp` path could persist the PRE-tap value within the same gesture.
+  int? _lastEmitted;
+
+  /// Debounce for accessibility nudges: one `onChangeEnd` per burst of
+  /// increments, not one SharedPreferences write per keypress.
+  Timer? _nudgePersist;
+
+  /// Edge-hit haptic latch so [HapticFeedback.heavyImpact] fires once per
+  /// arrival at min/max, not on every detent while parked at the edge.
+  bool _atEdge = false;
 
   /// Horizontal inset the track is painted with, so the thumb never clips at
   /// either extreme. The usable track is (width - 2 * _thumbSize / 2).
@@ -63,6 +83,22 @@ class _DurationSliderState extends State<DurationSlider> {
 
   double get _fraction =>
       _span == 0 ? 0 : (widget.valueSeconds - widget.minSeconds) / _span;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nudgePersist?.cancel();
+    _press.dispose();
+    super.dispose();
+  }
 
   int _snap(int raw) {
     final steps = (raw / widget.stepSeconds).round();
@@ -78,7 +114,14 @@ class _DurationSliderState extends State<DurationSlider> {
     if (next != widget.valueSeconds) {
       // One tick per detent crossed — this is the whole point of the control.
       HapticFeedback.selectionClick();
+      _lastEmitted = next;
       widget.onChanged(next);
+      // End-of-range resistance you can feel: a heavy tick on arrival at
+      // min/max (latched, so it does not machine-gun while held at the edge).
+      final atEdge =
+          next == widget.minSeconds || next == widget.maxSeconds;
+      if (atEdge && !_atEdge) HapticFeedback.heavyImpact();
+      _atEdge = atEdge;
     }
   }
 
@@ -86,8 +129,12 @@ class _DurationSliderState extends State<DurationSlider> {
     final next = _snap(widget.valueSeconds + deltaSteps * widget.stepSeconds);
     if (next != widget.valueSeconds) {
       HapticFeedback.selectionClick();
+      _lastEmitted = next;
       widget.onChanged(next);
-      widget.onChangeEnd?.call(next);
+      _nudgePersist?.cancel();
+      _nudgePersist = Timer(const Duration(milliseconds: 400), () {
+        widget.onChangeEnd?.call(next);
+      });
     }
   }
 
@@ -95,23 +142,42 @@ class _DurationSliderState extends State<DurationSlider> {
   Widget build(BuildContext context) {
     final accent = context.accent;
     final surface = context.surface;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Live readout. Tabular figures so the number does not jitter while
-        // dragging past a digit-width change (e.g. 9:55 -> 10:00).
+        // dragging past a digit-width change (e.g. 9:55 -> 10:00); an
+        // odometer slide on the digit group when NOT dragging (mid-drag the
+        // per-detent haptic already carries that feedback).
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            Text(
-              formatDurationLabel(widget.valueSeconds,
-                  zeroLabel: widget.zeroLabel),
-              style: AppText.statNumber(color: surface.textPrimary).copyWith(
-                color: widget.valueSeconds == 0
-                    ? surface.textSecondary
-                    : surface.textPrimary,
+            AnimatedSwitcher(
+              duration: _dragging || reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.25),
+                    end: Offset.zero,
+                  ).animate(anim),
+                  child: child,
+                ),
+              ),
+              child: Text(
+                formatDurationLabel(widget.valueSeconds,
+                    zeroLabel: widget.zeroLabel),
+                key: ValueKey(widget.valueSeconds),
+                style: AppText.statNumber(color: surface.textPrimary).copyWith(
+                  color: widget.valueSeconds == 0
+                      ? surface.textSecondary
+                      : surface.textPrimary,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -139,37 +205,51 @@ class _DurationSliderState extends State<DurationSlider> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: (d) => _emitFromDx(d.localPosition.dx, width),
-                onTapUp: (_) => widget.onChangeEnd?.call(widget.valueSeconds),
+                onTapUp: (_) => widget.onChangeEnd
+                    ?.call(_lastEmitted ?? widget.valueSeconds),
                 onHorizontalDragStart: (d) {
                   setState(() => _dragging = true);
+                  if (reduceMotion) {
+                    _press.value = 1;
+                  } else {
+                    _press.forward();
+                  }
                   _emitFromDx(d.localPosition.dx, width);
                 },
                 onHorizontalDragUpdate: (d) =>
                     _emitFromDx(d.localPosition.dx, width),
                 onHorizontalDragEnd: (_) {
                   setState(() => _dragging = false);
+                  _press.reverse();
                   HapticFeedback.lightImpact();
-                  widget.onChangeEnd?.call(widget.valueSeconds);
+                  widget.onChangeEnd
+                      ?.call(_lastEmitted ?? widget.valueSeconds);
                 },
-                onHorizontalDragCancel: () => setState(() => _dragging = false),
+                onHorizontalDragCancel: () {
+                  setState(() => _dragging = false);
+                  _press.reverse();
+                },
                 child: SizedBox(
                   height: _hitHeight,
                   width: double.infinity,
-                  child: CustomPaint(
-                    painter: _TrackPainter(
-                      fraction: _fraction,
-                      accent: accent.base,
-                      trackColor: surface.borderDefault,
-                      tickColor: surface.textTertiary,
-                      thumbBorder: surface.bgBase,
-                      trackHeight: _trackHeight,
-                      thumbSize: _thumbSize,
-                      inset: _inset,
-                      pressed: _dragging,
-                      minorTickEvery: 30,
-                      majorTickEvery: 60,
-                      minSeconds: widget.minSeconds,
-                      maxSeconds: widget.maxSeconds,
+                  child: AnimatedBuilder(
+                    animation: _press,
+                    builder: (context, child) => CustomPaint(
+                      painter: _TrackPainter(
+                        fraction: _fraction,
+                        accent: accent.base,
+                        trackColor: surface.borderDefault,
+                        tickColor: surface.textTertiary,
+                        thumbBorder: surface.bgBase,
+                        trackHeight: _trackHeight,
+                        thumbSize: _thumbSize,
+                        inset: _inset,
+                        pressT: _press.value,
+                        minorTickEvery: 30,
+                        majorTickEvery: 60,
+                        minSeconds: widget.minSeconds,
+                        maxSeconds: widget.maxSeconds,
+                      ),
                     ),
                   ),
                 ),
@@ -218,7 +298,9 @@ class _TrackPainter extends CustomPainter {
   final double trackHeight;
   final double thumbSize;
   final double inset;
-  final bool pressed;
+
+  /// 0..1 press-grow progress (28 → 34 thumb, halo bloom, glow).
+  final double pressT;
   final int minorTickEvery;
   final int majorTickEvery;
   final int minSeconds;
@@ -233,7 +315,7 @@ class _TrackPainter extends CustomPainter {
     required this.trackHeight,
     required this.thumbSize,
     required this.inset,
-    required this.pressed,
+    required this.pressT,
     required this.minorTickEvery,
     required this.majorTickEvery,
     required this.minSeconds,
@@ -248,6 +330,7 @@ class _TrackPainter extends CustomPainter {
     final usable = math.max(1.0, right - left);
     final thumbX = left + usable * fraction.clamp(0.0, 1.0);
     final radius = Radius.circular(trackHeight / 2);
+    final springT = Curves.easeOutBack.transform(pressT.clamp(0.0, 1.0));
 
     // Inactive track
     canvas.drawRRect(
@@ -259,53 +342,69 @@ class _TrackPainter extends CustomPainter {
     );
 
     // Detent ticks, drawn UNDER the active fill so the filled region reads as
-    // one solid bar rather than a dotted one.
+    // one solid bar rather than a dotted one. Ticks within ~40px of the thumb
+    // fade out so the thumb never sits on a line — the machined detail.
     final span = maxSeconds - minSeconds;
     if (span > 0) {
       for (int s = minSeconds; s <= maxSeconds; s += minorTickEvery) {
         final isMajor = s % majorTickEvery == 0;
         final x = left + usable * ((s - minSeconds) / span);
         final h = isMajor ? 9.0 : 5.0;
+        final fade = ((x - thumbX).abs() / 40).clamp(0.0, 1.0);
         canvas.drawLine(
           Offset(x, cy + trackHeight / 2 + 5),
           Offset(x, cy + trackHeight / 2 + 5 + h),
           Paint()
-            ..color = tickColor.withValues(alpha: isMajor ? 0.55 : 0.28)
+            ..color = tickColor.withValues(
+                alpha: (isMajor ? 0.55 : 0.28) * fade)
             ..strokeWidth = isMajor ? 1.5 : 1,
         );
       }
     }
 
-    // Active fill
+    // Active fill — a whisper of a gradient along the fill direction.
     if (thumbX > left) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(left, cy - trackHeight / 2, thumbX - left, trackHeight),
           radius,
         ),
-        Paint()..color = accent,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [accent.withValues(alpha: 0.72), accent],
+          ).createShader(
+              Rect.fromLTWH(left, cy - trackHeight / 2, usable, trackHeight)),
       );
     }
 
     // Pressed halo — confirms the grab without a Material overlay.
-    if (pressed) {
+    if (pressT > 0) {
       canvas.drawCircle(
         Offset(thumbX, cy),
-        thumbSize * 0.85,
-        Paint()..color = accent.withValues(alpha: 0.18),
+        thumbSize * 0.85 * pressT,
+        Paint()..color = accent.withValues(alpha: 0.18 * pressT),
+      );
+      // Small accent glow under the thumb while held.
+      canvas.drawCircle(
+        Offset(thumbX, cy),
+        thumbSize / 2 + 2,
+        Paint()
+          ..color = accent.withValues(alpha: 0.25 * pressT)
+          ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6),
       );
     }
 
     // Thumb: accent disc with a bgBase ring so it stays legible where it
-    // overlaps its own active fill.
+    // overlaps its own active fill. Grows 28 → 34 on a back-eased spring.
+    final thumbR = thumbSize / 2 + 3 * springT;
     canvas.drawCircle(
       Offset(thumbX, cy),
-      thumbSize / 2,
+      thumbR,
       Paint()..color = thumbBorder,
     );
     canvas.drawCircle(
       Offset(thumbX, cy),
-      thumbSize / 2 - 3,
+      thumbR - 3,
       Paint()..color = accent,
     );
   }
@@ -314,6 +413,8 @@ class _TrackPainter extends CustomPainter {
   bool shouldRepaint(_TrackPainter old) =>
       old.fraction != fraction ||
       old.accent != accent ||
-      old.pressed != pressed ||
-      old.trackColor != trackColor;
+      old.pressT != pressT ||
+      old.trackColor != trackColor ||
+      old.tickColor != tickColor ||
+      old.thumbBorder != thumbBorder;
 }

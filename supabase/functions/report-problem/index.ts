@@ -80,7 +80,7 @@ serve(async (req) => {
   const text = lines.filter((l) => l !== "").join("\n");
 
   const tg = await fetch(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+    `{{https://api.telegram.org/bot${BOT_TOKEN}}}/sendMessage`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },

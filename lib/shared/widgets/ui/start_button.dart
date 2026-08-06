@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/dynamic_accent_theme.dart';
 import '../motion/pressable_scale.dart';
+import 'app_button_shell.dart';
 
 /// [start_button.dart]
 /// Calm "Start" control (Option A — neutral-raised). Emphasis comes from
@@ -48,46 +49,42 @@ class StartButton extends StatelessWidget {
     final labelColor = on ? surface.textPrimary : surface.textTertiary;
     final glyphColor = on ? accent.base : surface.textTertiary;
 
-    final button = SizedBox(
-      height: expand ? 52 : 48,
-      width: expand ? double.infinity : null,
-      child: Material(
-        color: bg,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: surface.borderDefault),
-          borderRadius: AppRadius.buttonPrimaryAll,
+    // TEXT SCALING: no fixed `height:` anywhere in this subtree. The shell
+    // enforces the 48/52dp floor as a row child that can grow, and the label
+    // sits in Flexible+ellipsis — a fixed height is what clipped this label
+    // ("profile start workout button", ship-readiness #3).
+    final button = Material(
+      color: bg,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: surface.borderDefault),
+        borderRadius: AppRadius.buttonPrimaryAll,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: on
+            ? () {
+                HapticFeedback.mediumImpact();
+                onPressed!();
+              }
+            : onPressed, // disabled-but-tappable path: let caller show explainer
+        // Branded press feedback as a faint wash — never a flood.
+        overlayColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.pressed)
+              ? accent.base.withValues(alpha: 0.10)
+              : null,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: on
-              ? () {
-                  HapticFeedback.mediumImpact();
-                  onPressed!();
-                }
-              : onPressed, // disabled-but-tappable path: let caller show explainer
-          // Branded press feedback as a faint wash — never a flood.
-          overlayColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.pressed)
-                ? accent.base.withValues(alpha: 0.10)
-                : null,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: expand ? 0 : 68),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: expand ? 24 : 16),
-              child: Row(
-                mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 20, color: glyphColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: AppText.button(color: labelColor)
-                        .copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: expand ? 0 : 68),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: expand ? 24 : 16),
+            child: AppButtonShell(
+              label: label,
+              style: AppText.button(color: labelColor)
+                  .copyWith(fontWeight: FontWeight.w700),
+              icon: icon,
+              iconColor: glyphColor,
+              minHeight: expand ? 52 : 48,
+              expand: expand,
             ),
           ),
         ),

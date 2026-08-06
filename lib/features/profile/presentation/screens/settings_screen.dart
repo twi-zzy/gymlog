@@ -31,6 +31,7 @@ import 'package:gymlog/shared/widgets/ui/app_dialog.dart';
 import 'package:gymlog/shared/widgets/ui/app_snack_bar.dart';
 import 'package:gymlog/shared/widgets/ui/branded_bottom_sheet.dart';
 import 'package:gymlog/shared/widgets/ui/duration_slider.dart';
+import 'package:gymlog/shared/widgets/ui/primary_button.dart';
 import 'package:gymlog/shared/widgets/ui/time_range_filter.dart';
 import 'package:gymlog/core/config/legal_links.dart';
 import 'package:gymlog/shared/widgets/tour/spotlight_tour_overlay.dart';
@@ -744,21 +745,23 @@ class _GroupHeader extends StatelessWidget {
       );
 }
 
-/// The unsynced-work sign-out choice.
+/// The unsynced-work sign-out decision.
 ///
-/// This was the last stock [AlertDialog] on a destructive path: untokenised
-/// Material chrome on an AMOLED-black app, three equal-weight text buttons in
-/// a row where the only safe option looked identical to the two that end the
-/// session, and no statement of what each choice costs the user's unsynced
-/// data.
+/// Was: three equal-weight rows — Stay signed in / Sync, then sign out /
+/// Export a CSV, then sign out. Three problems with that (ship-readiness
+/// #2): it asked the user to choose a data-safety strategy the app can
+/// decide itself (it already knows premium status, sync state and queue
+/// depth); the safe option and the two session-ending options looked
+/// identical; and "Export a CSV" duplicated the Export row one screen up in
+/// Settings → Data — a file operation is not a sign-out choice.
 ///
-/// Now a branded sheet with stacked rows. The safe option is first and
-/// labelled as recommended; every option says what actually happens. A
-/// drag-dismiss returns null, which the caller already treats as "stay signed
-/// in" — the safe default is also the accidental one.
+/// Now: ONE primary action that does the right thing (upload first, then
+/// sign out — anything that cannot upload stays on this device), and ONE
+/// low-emphasis destructive escape. Drag-dismiss returns null, which the
+/// caller treats as "stay signed in" — the safe default is also the
+/// accidental one.
 Future<SignOutStrategy?> _showUnsyncedWorkSheet(BuildContext context) {
   HapticFeedback.mediumImpact();
-  final accent = context.accent;
 
   void choose(SignOutStrategy strategy) {
     HapticFeedback.selectionClick();
@@ -767,38 +770,29 @@ Future<SignOutStrategy?> _showUnsyncedWorkSheet(BuildContext context) {
 
   return showBrandedBottomSheet<SignOutStrategy>(
     context: context,
-    title: 'Unsynced workouts',
+    title: 'Back up before signing out?',
     subtitle: 'Some workouts on this device have not reached the cloud yet. '
-        'Signing out now would leave them only on this phone.',
-    child: AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          AppActionRow(
-            icon: Icons.shield_outlined,
-            iconColor: accent.light,
-            title: 'Stay signed in',
-            subtitle: 'Recommended — nothing leaves this device unsynced',
-            onTap: () => choose(SignOutStrategy.keepSignedIn),
+        'GymLog will upload them first — anything that cannot upload '
+        'stays on this device.',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PrimaryButton(
+          label: 'Back up & sign out',
+          icon: Icons.cloud_upload_outlined,
+          onPressed: () => choose(SignOutStrategy.signOutAfterSync),
+        ),
+        const SizedBox(height: 4),
+        Center(
+          child: TextButton(
+            onPressed: () => choose(SignOutStrategy.forceSignOut),
+            child: Text(
+              'Sign out anyway',
+              style: AppText.button(color: AppColors.error),
+            ),
           ),
-          const AppActionDivider(),
-          AppActionRow(
-            icon: Icons.cloud_upload_outlined,
-            iconColor: accent.light,
-            title: 'Sync, then sign out',
-            subtitle: 'Uploads first. Signs out anyway if the upload fails.',
-            onTap: () => choose(SignOutStrategy.signOutAfterSync),
-          ),
-          const AppActionDivider(),
-          AppActionRow(
-            icon: Icons.ios_share_rounded,
-            iconColor: accent.light,
-            title: 'Export a CSV, then sign out',
-            subtitle: 'Saves a copy you keep, then ends the session',
-            onTap: () => choose(SignOutStrategy.exportAndSignOut),
-          ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
@@ -808,7 +802,6 @@ class _SignOutButton extends ConsumerWidget {
     if (!tapGuard()) return;
     final user = ref.read(authProvider);
     if (user == null) return;
-    final profile = ref.read(currentUserProfileProvider).valueOrNull;
     final coordinator = ref.read(signOutCoordinatorProvider);
     final prep = await coordinator.prepare(user.id);
     if (prep == SignOutResult.unsyncedWork) {
@@ -816,11 +809,6 @@ class _SignOutButton extends ConsumerWidget {
       final strategy = await _showUnsyncedWorkSheet(context);
       if (strategy == null || strategy == SignOutStrategy.keepSignedIn) {
         return;
-      }
-      if (strategy == SignOutStrategy.exportAndSignOut) {
-        if (!context.mounted) return;
-        await _exportWorkouts(
-            context, ref, user.id, profile?.displayName ?? '');
       }
       if (!context.mounted) return;
       final outcome = await coordinator.execute(strategy);

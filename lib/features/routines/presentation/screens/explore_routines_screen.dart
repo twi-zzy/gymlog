@@ -19,6 +19,7 @@ import 'package:gymlog/features/routines/presentation/data/explore_catalog.dart'
 import 'package:gymlog/features/routines/presentation/providers/routines_provider.dart';
 import 'package:gymlog/shared/widgets/premium_paywall.dart';
 import 'package:gymlog/shared/widgets/tour/spotlight_tour_overlay.dart';
+import 'package:gymlog/shared/widgets/ui/app_snack_bar.dart';
 import 'package:gymlog/shared/widgets/ui/primary_button.dart';
 
 /// Parses the human-readable [focus] string into parent muscle groups suitable
@@ -234,33 +235,25 @@ class _ExploreRoutinesScreenState extends ConsumerState<ExploreRoutinesScreen>
 
   void _snack(String message) {
     if (!mounted) return;
-    final surface = context.surface;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message, style: AppText.meta(color: surface.textPrimary)),
-        backgroundColor: surface.surface3,
-        behavior: SnackBarBehavior.floating,
-      ));
+    showAppSnackBar(
+      context,
+      message: message,
+      variant: AppSnackBarVariant.error,
+    );
   }
 
   void _snackImported(String name, String id, int missed) {
+    if (!mounted) return;
     final msg = missed == 0
         ? '"$name" added to My Routines.'
         : '"$name" added — $missed exercise${missed > 1 ? 's' : ''} not in your library were skipped.';
-    final surface = context.surface;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(msg, style: AppText.meta(color: surface.textPrimary)),
-        backgroundColor: surface.surface3,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'View',
-          textColor: surface.textPrimary,
-          onPressed: () => context.push('/routines/$id'),
-        ),
-      ));
+    showAppSnackBar(
+      context,
+      message: msg,
+      variant: AppSnackBarVariant.success,
+      actionLabel: 'View',
+      onAction: () => context.push('/routines/$id'),
+    );
   }
 
   void _showPreview(RoutineTemplate t,
@@ -599,8 +592,7 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

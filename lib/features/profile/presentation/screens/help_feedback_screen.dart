@@ -14,7 +14,9 @@ import 'package:gymlog/shared/widgets/ui/app_action_row.dart';
 import 'package:gymlog/shared/widgets/ui/app_card.dart';
 import 'package:gymlog/shared/widgets/ui/app_snack_bar.dart';
 import 'package:gymlog/shared/widgets/ui/branded_bottom_sheet.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:gymlog/shared/widgets/ui/primary_button.dart';
+import 'package:gymlog/shared/widgets/ui/time_range_filter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gymlog/shared/layout/adaptive.dart';
 
@@ -37,7 +39,7 @@ Future<void> showReportProblemSheet(BuildContext context, WidgetRef ref) async {
   await showBrandedBottomSheet<void>(
     context: context,
     title: 'Report a problem',
-    subtitle: 'Submit non-sensitive diagnostic details to support',
+    subtitle: 'Sent to the GymLog Telegram channel — non-sensitive details only',
     scrollable: true,
     child: ReportProblemForm(
       appVersion: version,
@@ -71,6 +73,7 @@ class ReportProblemForm extends StatefulWidget {
 
 class _ReportProblemFormState extends State<ReportProblemForm> {
   String _category = 'Bug / Crash';
+  bool _submitting = false;
   final _shortDescriptionController = TextEditingController();
   final _reproStepsController = TextEditingController();
 
@@ -88,6 +91,34 @@ class _ReportProblemFormState extends State<ReportProblemForm> {
     _shortDescriptionController.dispose();
     _reproStepsController.dispose();
     super.dispose();
+  }
+
+  IconData _categoryIcon(String c) => switch (c) {
+        'Bug / Crash' => Icons.bug_report_outlined,
+        'Sync Issue' => Icons.sync_rounded,
+        'Exercise / Catalog' => Icons.fitness_center_rounded,
+        'Workout Tracker' => Icons.timer_outlined,
+        'Personal Records' => Icons.emoji_events_outlined,
+        _ => Icons.more_horiz_rounded,
+      };
+
+  Future<void> _pickCategory() async {
+    HapticFeedback.selectionClick();
+    final selected = await showBrandedPickerSheet<String>(
+      context: context,
+      title: 'Category',
+      selected: _category,
+      options: [
+        for (final c in _categories)
+          PickerOption(
+            value: c,
+            label: c,
+            icon: _categoryIcon(c),
+            color: context.surface.textSecondary,
+          ),
+      ],
+    );
+    if (selected != null) setState(() => _category = selected);
   }
 
   String _buildDiagnosticReport() {
@@ -109,6 +140,14 @@ class _ReportProblemFormState extends State<ReportProblemForm> {
     return sb.toString();
   }
 
+  /// Delivery chain (ship-readiness #5):
+  /// 1. The report goes on the clipboard FIRST — every failure path below can
+  ///    honestly tell the user to paste it, and no report is ever lost.
+  /// 2. Post to the `report-problem` Supabase Edge Function, which holds the
+  ///    Telegram bot token server-side and delivers to the GymLog channel.
+  ///    A token bundled in the APK would be extractable with `strings`, so
+  ///    there is intentionally no direct Bot API call here.
+  /// 3. Relay unreachable → open the channel; the report is already copied.
   Future<void> _submitReport() async {
     if (_shortDescriptionController.text.trim().isEmpty) {
       showAppSnackBar(
@@ -118,33 +157,58 @@ class _ReportProblemFormState extends State<ReportProblemForm> {
       return;
     }
 
+    setState(() => _submitting = true);
     final reportText = _buildDiagnosticReport();
     await Clipboard.setData(ClipboardData(text: reportText));
-
     if (!mounted) return;
-    showAppSnackBar(context, message: 'Diagnostic report copied to clipboard');
 
+    var delivered = false;
+    try {
+      await Supabase.instance.client.functions.invoke(
+        'report-problem',
+        body: {
+          'category': _category,
+          'summary': _shortDescriptionController.text.trim(),
+          'repro': _reproStepsController.text.trim(),
+          'appVersion': widget.appVersion,
+          'os': widget.osName,
+          'dbSchema': widget.dbSchemaVersion,
+          'catalog': widget.catalogVersion,
+          'opRef': widget.opRef,
+        },
+      );
+      delivered = true;
+    } catch (_) {
+      delivered = false;
+    }
+    if (!mounted) return;
+
+    if (delivered) {
+      showAppSnackBar(
+        context,
+        message: 'Report sent to the GymLog channel (ref ${widget.opRef}).',
+        variant: AppSnackBarVariant.success,
+      );
+      Navigator.of(context, rootNavigator: true).pop();
+      return;
+    }
+
+    // Fallback: the report is already on the clipboard — open the channel so
+    // the user can paste it straight in.
+    showAppSnackBar(
+      context,
+      message: 'Report copied — paste it in the GymLog channel.',
+    );
     Navigator.of(context, rootNavigator: true).pop();
 
-    final uri = Uri(
-      scheme: 'mailto',
-      path: kSupportEmail,
-      queryParameters: {
-        'subject': 'GymLog Problem Report [$_category] (${widget.opRef})',
-        'body': reportText,
-      },
-    );
-
     try {
+      final uri = Uri.parse(kTelegramChannelUrl);
       if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        await SharePlus.instance.share(
-            ShareParams(text: reportText, subject: 'GymLog Problem Report'));
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (_) {
-      await SharePlus.instance.share(
-          ShareParams(text: reportText, subject: 'GymLog Problem Report'));
+      // The report is on the clipboard and the channel handle is on the
+      // Help & Feedback screen — nothing more the app can do here.
     }
   }
 
@@ -158,27 +222,28 @@ class _ReportProblemFormState extends State<ReportProblemForm> {
       children: [
         Text('CATEGORY', style: AppText.meta(color: surface.textSecondary)),
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: surface.surface2,
+        // Branded picker, not a stock Material DropdownButton — the last
+        // unbranded menu in the app (N4).
+        Material(
+          color: surface.surface2,
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.input),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _category,
-              isExpanded: true,
-              dropdownColor: surface.surface2,
-              items: _categories.map((c) {
-                return DropdownMenuItem(
-                  value: c,
-                  child:
-                      Text(c, style: AppText.body(color: surface.textPrimary)),
-                );
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) setState(() => _category = val);
-              },
+            onTap: _submitting ? null : _pickCategory,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _category,
+                      style: AppText.body(color: surface.textPrimary),
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 18, color: surface.textTertiary),
+                ],
+              ),
             ),
           ),
         ),
@@ -245,21 +310,13 @@ class _ReportProblemFormState extends State<ReportProblemForm> {
           ),
         ),
         const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            onPressed: _submitReport,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accent.base,
-              foregroundColor: accent.onAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.buttonPrimary),
-              ),
-            ),
-            child: Text('Submit Report',
-                style: AppText.button(color: accent.onAccent)),
-          ),
+        // PrimaryButton: minHeight + Flexible label, so the label can never
+        // clip the way the old fixed-height SizedBox did (ship-readiness #3).
+        PrimaryButton(
+          label: 'Submit Report',
+          icon: Icons.send_rounded,
+          isLoading: _submitting,
+          onPressed: _submitting ? null : _submitReport,
         ),
         const SizedBox(height: 12),
       ],
@@ -345,7 +402,7 @@ class HelpFeedbackScreen extends ConsumerWidget {
                                 AppText.cardTitle(color: surface.textPrimary)),
                         const SizedBox(height: 2),
                         Text(
-                          'Monitored route: $kSupportEmail',
+                          'Reports land in the Telegram channel · t.me/gym_log',
                           style: AppText.meta(color: surface.textSecondary),
                         ),
                       ],
@@ -365,15 +422,8 @@ class HelpFeedbackScreen extends ConsumerWidget {
                   AppActionRow(
                     icon: Icons.bug_report_outlined,
                     title: 'Report a problem',
-                    subtitle: 'Send non-sensitive diagnostic report',
+                    subtitle: 'Sent to the GymLog Telegram channel',
                     onTap: () => showReportProblemSheet(context, ref),
-                  ),
-                  const AppActionDivider(),
-                  AppActionRow(
-                    icon: Icons.mail_outline_rounded,
-                    title: 'Contact support',
-                    subtitle: kSupportEmail,
-                    onTap: () => _launchUrl(context, 'mailto:$kSupportEmail'),
                   ),
                 ],
               ),

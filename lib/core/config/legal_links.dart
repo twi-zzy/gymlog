@@ -1,19 +1,20 @@
-/// Canonical legal-document URLs, shared by the Settings screen and the
-/// pre-sign-in Auth screen. Centralized so the App Store / Play Store
-/// required links never drift between the two surfaces.
-///
-/// These point at the hosted HTML pages on GitHub Pages.
+/// Legal & support links — single source for store-review-visible URLs.
 library;
 
-const String kPrivacyPolicyUrl =
+const kPrivacyPolicyUrl =
     'https://atharvoid.github.io/Gym-Log/legal/privacy-policy.html';
-
-const String kTermsOfServiceUrl =
+const kTermsOfServiceUrl =
     'https://atharvoid.github.io/Gym-Log/legal/terms-of-service.html';
-
-const String kAccountDeletionUrl =
+const kAccountDeletionUrl =
     'https://atharvoid.github.io/Gym-Log/legal/delete-account.html';
 
-const String kSupportEmail = 'support@gymlog.app';
+/// Where problem reports and support live: the GymLog Telegram channel.
+///
+/// A t.me link CANNOT carry a prefilled message body, so "Report a problem"
+/// posts its diagnostic template through the `report-problem` Supabase Edge
+/// Function — which holds the Telegram bot token server-side — and falls
+/// back to clipboard + this link when the relay is unreachable. There is
+/// deliberately no support email in the app anymore (ship-readiness #5).
+const kTelegramChannelUrl = 'https://t.me/gym_log';
 
-const int kExerciseCatalogVersion = 2;
+const kExerciseCatalogVersion = 2;

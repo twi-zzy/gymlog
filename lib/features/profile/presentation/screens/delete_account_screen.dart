@@ -67,7 +67,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         message: fullyDeleted
             ? 'Your account and data have been permanently deleted.'
             : 'Your data on this device was deleted, but some cloud data '
-                'could not be removed. Contact support to finish the purge.',
+                'could not be removed. Reach out in the GymLog Telegram '
+                'channel (t.me/gym_log) to finish the purge.',
       );
       router.go('/auth');
     } else {

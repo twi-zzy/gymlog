@@ -69,11 +69,18 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             : 'Your data on this device was deleted, but some cloud data '
                 'could not be removed. Reach out in the GymLog Telegram '
                 'channel (t.me/gym_log) to finish the purge.',
+        variant: fullyDeleted
+            ? AppSnackBarVariant.success
+            : AppSnackBarVariant.error,
       );
       router.go('/auth');
     } else {
       setState(() => _deleting = false);
-      showAppSnackBar(context, message: 'Deletion failed. Please try again.');
+      showAppSnackBar(
+        context,
+        message: 'Deletion failed. Please try again.',
+        variant: AppSnackBarVariant.error,
+      );
     }
   }
 
@@ -95,7 +102,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             leading: IconButton(
               tooltip: 'Back',
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              icon: Icon(Icons.arrow_back_ios_new,
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
                   size: 18, color: surface.textPrimary),
               onPressed: _deleting ? null : () => context.pop(),
             ),
@@ -216,7 +223,6 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
                       child: ElevatedButton(
                         onPressed: _canDelete ? _delete : null,
                         style: ElevatedButton.styleFrom(
@@ -227,6 +233,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                           disabledForegroundColor:
                               Colors.white.withValues(alpha: 0.5),
                           elevation: 0,
+                          minimumSize: const Size.fromHeight(54),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
                                   AppRadius.buttonPrimary)),
@@ -310,7 +317,7 @@ class _SectionCard extends StatelessWidget {
                       height: 4,
                       decoration: BoxDecoration(
                         color: surface.textSecondary,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(AppRadius.badge),
                       ),
                     ),
                   ),
@@ -332,8 +339,6 @@ class _ExportBackupButton extends ConsumerWidget {
   Future<void> _export(BuildContext context, WidgetRef ref, String userId,
       String displayName) async {
     HapticFeedback.lightImpact();
-    final messenger = ScaffoldMessenger.of(context);
-    final bgSurface = context.surface.bgSurface;
     try {
       final service = WorkoutExportService(ref.read(databaseProvider));
       final file = await service.writeCsvFile(userId);
@@ -343,16 +348,14 @@ class _ExportBackupButton extends ConsumerWidget {
         subject: 'GymLog workout export$who',
         text: 'GymLog training history$who',
       ));
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Export failed. Please try again.',
-            style: AppText.button(),
-          ),
-          backgroundColor: bgSurface,
-          behavior: SnackBarBehavior.floating,
-        ),
+    } catch (_) {
+      if (!context.mounted) return;
+      // Was a raw ScaffoldMessenger.showSnackBar bypass — lost branded
+      // shape/border/variant. Route through showAppSnackBar(error).
+      showAppSnackBar(
+        context,
+        message: 'Export failed. Please try again.',
+        variant: AppSnackBarVariant.error,
       );
     }
   }

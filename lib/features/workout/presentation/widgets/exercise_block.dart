@@ -136,7 +136,8 @@ class ExerciseBlock extends ConsumerWidget {
         child: Container(
           decoration: BoxDecoration(
             color: surface.surface2,
-            borderRadius: BorderRadius.circular(17),
+            // P0.1 / N15: closed radius set — was literal 17.
+            borderRadius: AppRadius.cardAll,
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.07),
               width: 1.0,

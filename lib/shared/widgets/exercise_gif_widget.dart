@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gymlog/core/services/exercise_media_cache_manager.dart';
 import 'package:gymlog/core/theme/app_colors.dart';
+import 'package:gymlog/core/theme/app_text.dart';
 import 'package:gymlog/shared/providers/gif_last_frame_provider.dart';
 import 'package:gymlog/shared/widgets/ui/skeleton.dart';
 
@@ -24,7 +25,7 @@ class ExerciseGifWidget extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.contain,
-    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.borderRadius = const BorderRadius.all(Radius.circular(AppRadius.thumbnail)),
     this.animate = true,
     this.semanticLabel,
   });
@@ -49,6 +50,22 @@ class ExerciseGifWidget extends StatelessWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final decodeWidth =
         width != null && width! > 0 ? (width! * dpr).round() : 512;
+
+    // Scroll-aware decode gate (P2 deferred item, now landed): while a
+    // surrounding Scrollable is flinging hard enough that Flutter itself
+    // recommends deferred loading, hold the skeleton and do not start a
+    // new fetch/decode. No device-tuned constants — uses the framework
+    // signal directly. When the fling settles the next build resumes.
+    final deferDecode =
+        Scrollable.recommendDeferredLoadingForContext(context);
+    if (deferDecode) {
+      return RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: _buildPlaceholder(),
+        ),
+      );
+    }
 
     if (shouldAnimate) {
       // RepaintBoundary: an animating GIF repaints every frame — it must not

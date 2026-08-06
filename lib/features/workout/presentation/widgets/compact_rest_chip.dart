@@ -16,7 +16,7 @@ import 'rest_time_sheet.dart';
 /// - Intrinsic width (horizontal padding: 10)
 /// - Icon size: 16
 /// - Text size: 13
-/// - Radius: 11
+/// - Radius: AppRadius.badge (closed radius set — was literal 11)
 /// - Touch target: minimum 48×48
 ///
 /// Labels:
@@ -87,7 +87,7 @@ class CompactRestChip extends ConsumerWidget {
     }
 
     final IconData iconData =
-        isDisabled ? Icons.timer_off_outlined : Icons.timer_outlined;
+        isDisabled ? Icons.timer_off_rounded : Icons.timer_rounded;
 
     final surface = context.surface;
     final Color bgColor = isDisabled
@@ -109,7 +109,7 @@ class CompactRestChip extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: AppRadius.badgeAll,
           onTap: () => _handleTap(context, ref, preference, defaultRest),
           child: Container(
             constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
@@ -119,7 +119,7 @@ class CompactRestChip extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: bgColor,
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: AppRadius.badgeAll,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

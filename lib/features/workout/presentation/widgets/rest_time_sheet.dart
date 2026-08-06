@@ -6,6 +6,7 @@ import 'package:gymlog/core/models/rest_preference.dart';
 import 'package:gymlog/core/theme/app_colors.dart';
 import 'package:gymlog/core/theme/app_text.dart';
 import 'package:gymlog/core/theme/dynamic_accent_theme.dart';
+import 'package:gymlog/shared/widgets/ui/duration_slider.dart';
 
 /// Opens the compact rest-time selection sheet for an exercise.
 ///
@@ -40,6 +41,12 @@ String _formatDuration(int seconds) {
 }
 
 /// Compact rest-time sheet for exercise-level rest duration preference.
+///
+/// One concept, one control: the same [DurationSlider] Settings uses, with
+/// the ±15s steppers flanking it. The six preset chips were a third input
+/// method for a single integer — a 5s-detent slider already expresses every
+/// preset value (plus 45s and 75s, which the presets couldn't), so they were
+/// removed rather than maintained (ship-readiness #9).
 class RestTimeSheet extends StatefulWidget {
   final String exerciseName;
   final RestPreference currentPreference;
@@ -57,6 +64,9 @@ class RestTimeSheet extends StatefulWidget {
 }
 
 class _RestTimeSheetState extends State<RestTimeSheet> {
+  static const int _minCustomSeconds = 15;
+  static const int _maxCustomSeconds = 600;
+
   late RestPreference draft;
 
   @override
@@ -85,7 +95,7 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
         : _workingSeconds;
     setState(() {
       draft = RestPreference.custom(
-        (startSec - 15).clamp(15, 600),
+        (startSec - 15).clamp(_minCustomSeconds, _maxCustomSeconds),
       );
     });
   }
@@ -96,7 +106,7 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
         : _workingSeconds;
     setState(() {
       draft = RestPreference.custom(
-        (startSec + 15).clamp(15, 600),
+        (startSec + 15).clamp(_minCustomSeconds, _maxCustomSeconds),
       );
     });
   }
@@ -134,7 +144,7 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: surface.borderEmphasis,
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(AppRadius.badge),
                       ),
                     ),
                   ),
@@ -143,12 +153,7 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                   // Title: Rest time (20/700)
                   Text(
                     'Rest time',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: surface.textPrimary,
-                    ),
+                    style: AppText.sectionHeading(color: surface.textPrimary),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
@@ -156,12 +161,8 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                   // Subtitle: exerciseName · This workout only (14/400)
                   Text(
                     '${widget.exerciseName} · This workout only',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: surface.textSecondary,
-                    ),
+                    style: AppText.body(color: surface.textSecondary)
+                        .copyWith(fontSize: 14),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -212,60 +213,51 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Stepper row: [ -15s ] (48x48) 1:30 [ +15s ] (48x48)
+                  // ±15s steppers flanking the shared [DurationSlider] — the
+                  // exact control Settings uses for the same concept. The
+                  // slider's own readout (AppText.statNumber, tabular) is the
+                  // value display; the old monospace 32pt readout — the only
+                  // monospace glyph in the app — is gone (ship-readiness #9).
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _StepperButton(
                         label: '−15s',
+                        semanticLabel: 'Decrease rest by 15 seconds',
                         onTap: () {
                           HapticFeedback.selectionClick();
                           decrease();
                         },
                       ),
-                      const SizedBox(width: 24),
-                      Text(
-                        _formatDuration(displaySeconds),
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: surface.textPrimary,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DurationSlider(
+                          valueSeconds: displaySeconds.clamp(
+                              _minCustomSeconds, _maxCustomSeconds),
+                          minSeconds: _minCustomSeconds,
+                          maxSeconds: _maxCustomSeconds,
+                          stepSeconds: 5,
+                          onChanged: (s) {
+                            setState(() {
+                              draft = RestPreference.custom(s);
+                            });
+                          },
+                          onChangeEnd: (s) {
+                            setState(() {
+                              draft = RestPreference.custom(s);
+                            });
+                          },
                         ),
                       ),
-                      const SizedBox(width: 24),
+                      const SizedBox(width: 8),
                       _StepperButton(
                         label: '+15s',
+                        semanticLabel: 'Increase rest by 15 seconds',
                         onTap: () {
                           HapticFeedback.selectionClick();
                           increase();
                         },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Presets Wrap (preset height 46)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      for (final sec in const <int>[30, 60, 90, 120, 180, 300])
-                        _PresetButton(
-                          label: _formatDuration(sec),
-                          isSelected: isCustomPreset(draft, sec),
-                          accent: accent,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() {
-                              draft = normalizeRestPreference(
-                                preference: RestPreference.custom(sec),
-                                globalSeconds: widget.globalSeconds,
-                              );
-                            });
-                          },
-                        ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -279,8 +271,8 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                           child: TextButton(
                             style: TextButton.styleFrom(
                               foregroundColor: surface.textSecondary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: AppRadius.buttonPrimaryAll,
                               ),
                             ),
                             onPressed: () => Navigator.pop(context, null),
@@ -301,8 +293,8 @@ class _RestTimeSheetState extends State<RestTimeSheet> {
                               backgroundColor: accent.base,
                               foregroundColor: accent.onAccent,
                               elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: AppRadius.buttonPrimaryAll,
                               ),
                             ),
                             onPressed: () {
@@ -356,7 +348,7 @@ class _OptionButton extends StatelessWidget {
       color:
           isSelected ? accent.base.withValues(alpha: 0.14) : surface.surface3,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.buttonPrimaryAll,
         side: BorderSide(
           color: isSelected
               ? accent.base.withValues(alpha: 0.60)
@@ -365,7 +357,7 @@ class _OptionButton extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.buttonPrimaryAll,
         onTap: onTap,
         child: Container(
           constraints: BoxConstraints(
@@ -376,10 +368,7 @@ class _OptionButton extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            style: AppText.rowLabel(
               color: isSelected ? accent.light : surface.textPrimary,
             ),
           ),
@@ -391,83 +380,34 @@ class _OptionButton extends StatelessWidget {
 
 class _StepperButton extends StatelessWidget {
   final String label;
+  final String semanticLabel;
   final VoidCallback onTap;
 
-  const _StepperButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final surface = context.surface;
-    return Material(
-      color: surface.surface3,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: surface.textPrimary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PresetButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final AccentColors accent;
-  final VoidCallback onTap;
-
-  const _PresetButton({
+  const _StepperButton({
     required this.label,
-    required this.isSelected,
-    required this.accent,
+    required this.semanticLabel,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final surface = context.surface;
-    return Material(
-      color:
-          isSelected ? accent.base.withValues(alpha: 0.14) : surface.surface3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: isSelected
-              ? accent.base.withValues(alpha: 0.60)
-              : surface.borderSubtle,
-          width: isSelected ? 1.5 : 1.0,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(
-            minHeight: 48,
-            minWidth: 80,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? accent.light : surface.textPrimary,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: Material(
+        color: surface.surface3,
+        borderRadius: AppRadius.buttonSecondaryAll,
+        child: InkWell(
+          borderRadius: AppRadius.buttonSecondaryAll,
+          onTap: onTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: AppText.rowLabel(color: surface.textPrimary),
             ),
           ),
         ),

@@ -37,7 +37,11 @@ class _SimpleSemaphore {
   }
 }
 
-final _gifConcurrencySemaphore = _SimpleSemaphore(4);
+// Two, not four: four concurrent whole-file fetch+decode jobs contended
+// with the 16.6ms frame budget during a fling — the scroll jitter was felt,
+// not imagined (ship-readiness #1). Two keeps fetch and decode overlapped
+// without saturating the UI isolate.
+final _gifConcurrencySemaphore = _SimpleSemaphore(2);
 
 /// Thumbnail decode width cap. Thumbnails are 44–52 dp, so decoding at 2×
 /// logical pixels (104px on a 2× device) is plenty — keeps RAM low and decode

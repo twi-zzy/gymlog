@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gymlog/core/services/exercise_media_cache_manager.dart';
 import 'package:gymlog/core/theme/app_colors.dart';
 import 'package:gymlog/shared/providers/gif_last_frame_provider.dart';
+import 'package:gymlog/shared/widgets/ui/skeleton.dart';
 
 class ExerciseGifWidget extends StatelessWidget {
   final String? gifUrl;
@@ -41,97 +42,143 @@ class ExerciseGifWidget extends StatelessWidget {
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final shouldAnimate = animate && !reduceMotion;
 
+    // Decode at the exact device-pixel size the widget paints at — never
+    // logicalWidth*2 and never the 512px blanket fallback. A 512px animated
+    // GIF decodes EVERY frame at 512² on the UI isolate; a 44dp thumbnail on
+    // a 3× device needs 132 (ship-readiness #1).
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final decodeWidth =
+        width != null && width! > 0 ? (width! * dpr).round() : 512;
+
     if (shouldAnimate) {
-      return ClipRRect(
-        borderRadius: borderRadius,
-        child: CachedNetworkImage(
-          cacheManager: ExerciseMediaCacheManager(),
-          imageUrl: gifUrl!,
-          width: width,
-          height: height,
-          fit: fit,
-          memCacheWidth:
-              width != null && width! > 0 ? (width! * 2).toInt() : 512,
-          imageBuilder: (context, imageProvider) => Semantics(
-            image: true,
-            label: _label,
-            child: Image(
-              image: imageProvider,
-              width: width,
-              height: height,
-              fit: fit,
-            ),
-          ),
-          placeholder: (context, url) => _buildPlaceholder(),
-          errorWidget: (context, url, error) {
-            debugPrint(
-              '[ExerciseGifWidget] Failed to load GIF.\n'
-              '  URL  : $url\n'
-              '  Error: $error',
-            );
-            return _buildFallback(failed: true);
-          },
-        ),
-      );
-    }
-
-    return Consumer(
-      builder: (context, ref, child) {
-        final frameAsync = ref.watch(gifLastFrameProvider((
-          url: gifUrl!,
-          targetWidth: width != null && width! > 0 ? (width! * 2).toInt() : 512,
-        )));
-
-        return ClipRRect(
+      // RepaintBoundary: an animating GIF repaints every frame — it must not
+      // dirty its ancestors' layers with it.
+      return RepaintBoundary(
+        child: ClipRRect(
           borderRadius: borderRadius,
-          child: frameAsync.when(
-            loading: () => _buildPlaceholder(),
-            error: (_, __) => _buildFallback(failed: true),
-            data: (img) {
-              // A null frame means the fetch or decode gave up — that is a
-              // failure, not an exercise without media (B19-F4).
-              if (img == null) return _buildFallback(failed: true);
-              return Semantics(
-                image: true,
-                label: _label,
-                child: RawImage(
-                  // Borrowed from the shared bounded frame cache; never
-                  // disposed here (see gif_last_frame_provider).
-                  image: img,
+          child: CachedNetworkImage(
+            cacheManager: ExerciseMediaCacheManager(),
+            imageUrl: gifUrl!,
+            width: width,
+            height: height,
+            fit: fit,
+            memCacheWidth: decodeWidth,
+            imageBuilder: (context, imageProvider) => Semantics(
+              image: true,
+              label: _label,
+              // Fade the arrival — a hard spinner→image pop reads as "slow"
+              // even when the decode was fast.
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
+                builder: (context, t, child) =>
+                    Opacity(opacity: t, child: child),
+                child: Image(
+                  image: imageProvider,
                   width: width,
                   height: height,
                   fit: fit,
                 ),
+              ),
+            ),
+            placeholder: (context, url) => _buildPlaceholder(),
+            errorWidget: (context, url, error) {
+              debugPrint(
+                '[ExerciseGifWidget] Failed to load GIF.\n'
+                '  URL  : $url\n'
+                '  Error: $error',
               );
+              return _buildFallback(failed: true);
             },
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    return RepaintBoundary(
+      child: Consumer(
+        builder: (context, ref, child) {
+          // FIRST frame, not last: the last-frame path looped
+          // codec.getNextFrame() over EVERY frame to reach the end — a
+          // 40-frame GIF cost 40 decodes to show one image. The first frame
+          // is the start-position pose (semantically the better thumbnail)
+          // and costs exactly one decode (ship-readiness #1).
+          final frameAsync = ref.watch(gifFirstFrameProvider((
+            url: gifUrl!,
+            targetWidth: decodeWidth,
+          )));
+
+          return ClipRRect(
+            borderRadius: borderRadius,
+            child: frameAsync.when(
+              loading: () => _buildPlaceholder(),
+              error: (_, __) => _buildFallback(failed: true),
+              data: (img) {
+                // A null frame means the fetch or decode gave up — that is a
+                // failure, not an exercise without media (B19-F4).
+                if (img == null) return _buildFallback(failed: true);
+                return Semantics(
+                  image: true,
+                  label: _label,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    builder: (context, t, child) =>
+                        Opacity(opacity: t, child: child),
+                    child: RawImage(
+                      // Borrowed from the shared bounded frame cache; never
+                      // disposed here (see gif_last_frame_provider).
+                      image: img,
+                      width: width,
+                      height: height,
+                      fit: fit,
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildPlaceholder() {
+    final w = width;
+    final h = height;
+    // Skeleton at the EXACT final size: no spinner, zero layout shift when
+    // the frame arrives (the old bare CircularProgressIndicator on bgSurface
+    // hard-popped into the image).
+    if (w != null && h != null) {
+      return Semantics(
+        label: 'Loading exercise demonstration',
+        child: ExcludeSemantics(
+          child: SkeletonPulse(
+            label: 'Loading exercise demonstration',
+            child: SkeletonBox(
+              width: w,
+              height: h,
+              radius: borderRadius.topLeft.x,
+            ),
+          ),
+        ),
+      );
+    }
+    // Intrinsic-size contexts (hero/detail): no exact skeleton possible —
+    // hold the quiet surface so arrival is still shift-free.
     return Semantics(
       label: 'Loading exercise demonstration',
       child: ExcludeSemantics(
         child: Container(
-          width: width,
-          height: height,
+          width: w,
+          height: h,
           decoration: BoxDecoration(
             color: AppColors.bgSurface,
             borderRadius: borderRadius,
-          ),
-          // Color intentionally omitted — inherits the active palette base via
-          // app_theme's progressIndicatorTheme, so the spinner tracks the user's
-          // chosen accent instead of a hardcoded purple.
-          child: const Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-              ),
-            ),
           ),
         ),
       ),

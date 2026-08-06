@@ -17,6 +17,7 @@ import 'package:gymlog/features/workout/presentation/providers/previous_session_
 import 'package:gymlog/features/exercises/presentation/providers/exercises_provider.dart';
 import 'compact_rest_chip.dart';
 import 'set_row.dart';
+import 'set_table_layout.dart';
 
 /// One exercise inside the active workout. Shared card surface (gradient +
 /// hairline via AppCard), white heading (accent is for actions, not titles),
@@ -199,102 +200,76 @@ class ExerciseBlock extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // ── Column labels — share SetRow's exact column geometry ─────
-            //
-            // TEXT SCALING: this strip used to be SizedBox(height: 22). The
-            // labels are AppText.columnHeader (11sp), whose line box is already
-            // ~20px at the app's current 1.4 clamp — about one pixel of
-            // headroom. Raise the clamp toward the 200% accessibility budget
-            // and the same text needs ~29px inside a 22px box, overflowing the
-            // densest screen in the app. A minimum keeps today's pixels
-            // identical wherever the text still fits and lets the strip grow
-            // where it does not. Do not pin this back to a fixed height.
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 22),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: kSetColW,
-                    child: Text('SET',
-                        style:
-                            AppText.columnHeader(color: surface.textSecondary)),
-                  ),
-                  Expanded(
-                    flex: kPrevFlex,
-                    child: Text('PREVIOUS',
-                        style:
-                            AppText.columnHeader(color: surface.textSecondary)),
-                  ),
-                  Expanded(
-                    flex: kWeightFlex,
-                    child: !mType.showsWeightColumn
-                        ? const SizedBox.shrink()
-                        : Center(
-                            child: Semantics(
-                              button: onUnitTap != null && mType.requiresWeight,
-                              label: mType.requiresWeight
-                                  ? 'Weight unit ${unit.toUpperCase()}, tap to change'
-                                  : 'Distance column',
-                              child: GestureDetector(
-                                onTap:
-                                    (mType.requiresWeight && onUnitTap != null)
-                                        ? () {
-                                            HapticFeedback.selectionClick();
-                                            onUnitTap!();
-                                          }
-                                        : null,
-                                behavior: HitTestBehavior.opaque,
-                                child: Container(
-                                  constraints: const BoxConstraints(
-                                    minWidth: 48,
-                                    minHeight: 48,
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        mType.isDistance
-                                            ? Icons.straighten_rounded
-                                            : Icons.fitness_center_rounded,
-                                        size: 11,
-                                        color: surface.textSecondary,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Flexible(
-                                        child: Text(
-                                          mType.fixedWeightColumnLabel ??
-                                              unit.toUpperCase(),
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppText.columnHeader(
-                                              color: surface.textSecondary),
-                                        ),
-                                      ),
-                                    ],
+            // ── Column labels — the header is a SetTableRow, so its centre
+            // lines are the data rows' centre lines BY CONSTRUCTION (they
+            // share inset, widths and flex via set_table_layout.dart). The
+            // 22dp minHeight stays a minimum: AppText.columnHeader (11sp)
+            // needs ~29px at the 200% accessibility budget, so the strip
+            // grows there instead of overflowing (do not pin to a fixed
+            // height — see ship-readiness #6).
+            SetTableRow(
+              minHeight: 22,
+              setSlot: Text('SET',
+                  style: AppText.columnHeader(color: surface.textSecondary)),
+              previousSlot: Text('PREVIOUS',
+                  style: AppText.columnHeader(color: surface.textSecondary)),
+              weightSlot: !mType.showsWeightColumn
+                  ? const SizedBox.shrink()
+                  : Center(
+                      child: Semantics(
+                        button: onUnitTap != null && mType.requiresWeight,
+                        label: mType.requiresWeight
+                            ? 'Weight unit ${unit.toUpperCase()}, tap to change'
+                            : 'Distance column',
+                        child: GestureDetector(
+                          onTap: (mType.requiresWeight && onUnitTap != null)
+                              ? () {
+                                  HapticFeedback.selectionClick();
+                                  onUnitTap!();
+                                }
+                              : null,
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  mType.isDistance
+                                      ? Icons.straighten_rounded
+                                      : Icons.fitness_center_rounded,
+                                  size: 11,
+                                  color: surface.textSecondary,
+                                ),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(
+                                    mType.fixedWeightColumnLabel ??
+                                        unit.toUpperCase(),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.columnHeader(
+                                        color: surface.textSecondary),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                  ),
-                  Expanded(
-                    flex: kRepsFlex,
-                    child: Center(
-                      child: Text(
-                        mType.repsColumnLabel,
-                        style:
-                            AppText.columnHeader(color: surface.textSecondary),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: kCheckColW,
-                    child: Center(
-                      child: Icon(Icons.check_rounded,
-                          size: 13, color: surface.textSecondary),
-                    ),
-                  ),
-                ],
+              repsSlot: Center(
+                child: Text(
+                  mType.repsColumnLabel,
+                  style: AppText.columnHeader(color: surface.textSecondary),
+                ),
+              ),
+              checkSlot: Center(
+                child: Icon(Icons.check_rounded,
+                    size: 16, color: surface.textSecondary),
               ),
             ),
             const SizedBox(height: 4),

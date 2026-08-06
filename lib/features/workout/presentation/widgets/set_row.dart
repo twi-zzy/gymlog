@@ -10,16 +10,13 @@ import 'package:gymlog/features/workout/domain/active_workout_state.dart';
 import 'package:gymlog/shared/widgets/ui/time_range_filter.dart';
 
 import 'package:gymlog/core/models/measurement_type.dart';
+import 'set_table_layout.dart';
 
-// ── Shared column geometry ────────────────────────────────────────
-// The header row (ExerciseBlock) and every data row (SetRow) consume these
-// SAME constants so a caption can never drift from the column it labels.
-// Layout, left → right: SET · PREVIOUS · KG · REPS · ✓
-const double kSetColW = 48; // fixed — "1" / "W" / "D" / "F"
-const double kCheckColW = 48; // fixed — completion square
-const int kPrevFlex = 5; // "999kg x 99" — read-only reference, widest
-const int kWeightFlex = 4; // editable number
-const int kRepsFlex = 4; // editable number
+// Column geometry (kSetColW / kCheckColW / kPrevFlex / kWeightFlex /
+// kRepsFlex) now lives in set_table_layout.dart — re-exported here so
+// existing importers of set_row.dart keep resolving it unchanged.
+export 'set_table_layout.dart'
+    show kSetColW, kCheckColW, kPrevFlex, kWeightFlex, kRepsFlex;
 
 /// Background wash on a completed set row: 6% green over #000000.
 ///
@@ -272,12 +269,15 @@ class _SetRowState extends State<SetRow> {
   /// When [flashHint] is true the hint text briefly renders in a dim accent
   /// tint, signalling which field is missing a required value.
   ///
-  /// Horizontal padding expands the tap target so a finger lands on the
-  /// number field with room, not edge-to-edge.
-  ///
   /// The four `InputBorder.none` / `filled: false` lines below are LOAD-BEARING
   /// design, not leftovers. Removing them restores Material's default underline
   /// or outline and turns the set table back into a form.
+  ///
+  /// GEOMETRY: no per-field horizontal padding and no animating wrapper — the
+  /// shared [SetTableRow] slot owns this field's extents, so the typed number
+  /// is centred on exactly the same centre line as the column header above it
+  /// (ship-readiness #6). The [Center] is load-bearing: it vertically centres
+  /// the ~36dp field inside the 48dp tap target.
   Widget _numberField({
     required TextEditingController controller,
     required FocusNode focusNode,
@@ -292,57 +292,53 @@ class _SetRowState extends State<SetRow> {
     final accent = context.accent;
     final surface = context.surface;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-        child: Center(
-          child: Semantics(
-            label: semanticLabel,
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              readOnly: completed,
-              textAlign: TextAlign.center,
-              textAlignVertical: TextAlignVertical.center,
-              textInputAction: action,
-              keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
-              cursorColor: accent.base,
-              inputFormatters: [
-                if (isDecimal) ...[
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  TextInputFormatter.withFunction((oldValue, newValue) {
-                    if ('.'.allMatches(newValue.text).length > 1) {
-                      return oldValue;
-                    }
-                    return newValue;
-                  }),
-                ] else
-                  FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(isDecimal ? 6 : 5),
-              ],
-              style: AppText.value(color: surface.textPrimary),
-              decoration: InputDecoration(
-                hintText: hintText ?? '0',
-                hintStyle: AppText.value(
-                  color: flashHint
-                      ? accent.base.withValues(alpha: 0.85)
-                      : surface.textTertiary,
-                ),
-                border: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                filled: false,
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+      child: Center(
+        child: Semantics(
+          label: semanticLabel,
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            readOnly: completed,
+            textAlign: TextAlign.center,
+            textAlignVertical: TextAlignVertical.center,
+            textInputAction: action,
+            keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
+            cursorColor: accent.base,
+            inputFormatters: [
+              if (isDecimal) ...[
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  if ('.'.allMatches(newValue.text).length > 1) {
+                    return oldValue;
+                  }
+                  return newValue;
+                }),
+              ] else
+                FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(isDecimal ? 6 : 5),
+            ],
+            style: AppText.value(color: surface.textPrimary),
+            decoration: InputDecoration(
+              hintText: hintText ?? '0',
+              hintStyle: AppText.value(
+                color: flashHint
+                    ? accent.base.withValues(alpha: 0.85)
+                    : surface.textTertiary,
               ),
-              onChanged: onChanged,
-              onSubmitted: (_) => action == TextInputAction.next
-                  ? FocusScope.of(context).nextFocus()
-                  : FocusScope.of(context).unfocus(),
+              border: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              filled: false,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             ),
+            onChanged: onChanged,
+            onSubmitted: (_) => action == TextInputAction.next
+                ? FocusScope.of(context).nextFocus()
+                : FocusScope.of(context).unfocus(),
           ),
         ),
       ),
@@ -452,198 +448,178 @@ class _SetRowState extends State<SetRow> {
                   left: BorderSide(color: AppColors.success, width: 3))
               : null,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: Row(
-            children: [
-              // ── SET — type letter replaces number, opens the type picker ──
-              SizedBox(
-                width: kSetColW,
-                child: Semantics(
-                  button: !isCompleted,
-                  label:
-                      'Set type, ${SetType.of(widget.setData.setType).label}',
-                  child: GestureDetector(
-                    onTap: isCompleted
-                        ? null
-                        : () {
-                            HapticFeedback.selectionClick();
-                            _pickSetType();
-                          },
-                    behavior: HitTestBehavior.opaque,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _setTypeIndicator(),
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── PREVIOUS — read-only reference from the last session ────
-              Expanded(
-                flex: kPrevFlex,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      prev ?? '',
-                      style: AppText.statLabel(
-                        color: prev != null
-                            ? surface.textSecondary
-                            : surface.textTertiary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── WEIGHT / DISTANCE — hidden for repsOnly and duration ──────
-              Expanded(
-                flex: kWeightFlex,
-                child: !widget.measurementType.showsWeightColumn
-                    ? const SizedBox.shrink()
-                    : _numberField(
-                        controller: _weightController,
-                        focusNode: _weightFocus,
-                        isDecimal: true,
-                        semanticLabel:
-                            widget.measurementType == MeasurementType.distance
-                                ? 'Distance in metres'
-                                : 'Weight in ${widget.unit}',
-                        hintText: widget.previousWeight != null
-                            ? _formatWeightField(widget.previousWeight!)
-                            : '0',
-                        flashHint: _weightShouldFlash,
-                        onChanged: (val) {
-                          if (val.trim().isEmpty) {
-                            widget.onChanged(
-                                widget.setData.copyWith(weightKg: null));
-                            return;
-                          }
-                          final parsed = double.tryParse(val);
-                          if (parsed != null) {
-                            // Distance: store raw value — no kg/lbs conversion.
-                            // Weight: convert from the user's display unit to kg.
-                            final stored = widget.measurementType ==
-                                    MeasurementType.distance
-                                ? parsed.clamp(0.0, 99999.0)
-                                : displayToKg(parsed, widget.unit)
-                                    .clamp(0.0, 999.5);
-                            widget.onChanged(
-                                widget.setData.copyWith(weightKg: stored));
-                          }
-                        },
-                      ),
-              ),
-
-              // ── REPS / SECS — hidden for distance ───────────────────────
-              Expanded(
-                flex: kRepsFlex,
-                child: !widget.measurementType.showsRepsColumn
-                    ? const SizedBox.shrink()
-                    : _numberField(
-                        controller: _repsController,
-                        focusNode: _repsFocus,
-                        isDecimal: false,
-                        action: TextInputAction.done,
-                        semanticLabel:
-                            widget.measurementType.repsFieldSemanticLabel,
-                        hintText: widget.previousReps != null
-                            ? '${widget.previousReps!}'
-                            : '0',
-                        flashHint: _repsShouldFlash,
-                        onChanged: (val) {
-                          if (val.trim().isEmpty) {
-                            widget.onChanged(widget.setData.copyWith(reps: 0));
-                            return;
-                          }
-                          final parsed = int.tryParse(val);
-                          if (parsed != null) {
-                            widget.onChanged(widget.setData
-                                .copyWith(reps: parsed.clamp(0, 99999)));
-                          }
-                        },
-                      ),
-              ),
-
-              // ── Completion — always tappable; validation fires on miss ───
-              SizedBox(
-                width: kCheckColW,
-                child: Semantics(
-                  button: true,
-                  label: isCompleted ? 'Mark set incomplete' : 'Complete set',
-                  child: GestureDetector(
-                    onTap: () {
-                      if (isCompleted) {
-                        _onToggleComplete();
-                        return;
-                      }
-                      if (!_canComplete) {
-                        // Show which field(s) are empty for 1.4 s, then fade.
-                        HapticFeedback.heavyImpact();
-                        setState(() => _showValidationHint = true);
-                        Future.delayed(const Duration(milliseconds: 1400), () {
-                          if (mounted) {
-                            setState(() => _showValidationHint = false);
-                          }
-                        });
-                        return;
-                      }
-                      HapticFeedback.mediumImpact();
-                      _onToggleComplete();
+        // Horizontal inset is owned by [SetTableRow] — see
+        // set_table_layout.dart. Vertical rhythm stays here.
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: SetTableRow(
+          // ── SET — type letter replaces number, opens the type picker ──
+          setSlot: Semantics(
+            button: !isCompleted,
+            label: 'Set type, ${SetType.of(widget.setData.setType).label}',
+            child: GestureDetector(
+              onTap: isCompleted
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      _pickSetType();
                     },
-                    behavior: HitTestBehavior.opaque,
-                    child: Center(
-                      child: TweenAnimationBuilder<double>(
-                        key: ValueKey(isCompleted),
-                        tween: Tween<double>(
-                          begin: isCompleted ? 1.15 : 1.0,
-                          end: 1.0,
-                        ),
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : const Duration(milliseconds: 100),
-                        curve: Curves.easeOutBack,
-                        builder: (context, scale, child) =>
-                            Transform.scale(scale: scale, child: child),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            borderRadius: AppRadius.badgeAll,
-                            color: isCompleted
-                                ? AppColors.success
-                                : Colors.transparent,
-                            border: isCompleted
-                                ? null
-                                : Border.all(
-                                    color: _canComplete
-                                        ? AppColors.success
-                                            .withValues(alpha: 0.55)
-                                        : surface.textPrimary
-                                            .withValues(alpha: 0.15),
-                                  ),
-                          ),
-                          child: Icon(
-                            Icons.check_rounded,
-                            color: isCompleted
-                                ? surface.textPrimary
-                                : _canComplete
-                                    ? AppColors.success.withValues(alpha: 0.7)
-                                    : surface.textPrimary
-                                        .withValues(alpha: 0.10),
-                            size: 18,
-                          ),
-                        ),
-                      ),
+              behavior: HitTestBehavior.opaque,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _setTypeIndicator(),
+              ),
+            ),
+          ),
+
+          // ── PREVIOUS — read-only reference from the last session ────
+          // C31: was FittedBox(scaleDown) — arbitrary shrink-to-fit text is
+          // a WCAG 1.4.4 failure. Ellipsis truncates the tail instead of
+          // shrinking glyphs below readable size.
+          previousSlot: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              prev ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.statLabel(
+                color: prev != null
+                    ? surface.textSecondary
+                    : surface.textTertiary,
+              ),
+            ),
+          ),
+
+          // ── WEIGHT / DISTANCE — hidden for repsOnly and duration ──────
+          weightSlot: !widget.measurementType.showsWeightColumn
+              ? const SizedBox.shrink()
+              : _numberField(
+                  controller: _weightController,
+                  focusNode: _weightFocus,
+                  isDecimal: true,
+                  semanticLabel:
+                      widget.measurementType == MeasurementType.distance
+                          ? 'Distance in metres'
+                          : 'Weight in ${widget.unit}',
+                  hintText: widget.previousWeight != null
+                      ? _formatWeightField(widget.previousWeight!)
+                      : '0',
+                  flashHint: _weightShouldFlash,
+                  onChanged: (val) {
+                    if (val.trim().isEmpty) {
+                      widget.onChanged(
+                          widget.setData.copyWith(weightKg: null));
+                      return;
+                    }
+                    final parsed = double.tryParse(val);
+                    if (parsed != null) {
+                      // Distance: store raw value — no kg/lbs conversion.
+                      // Weight: convert from the user's display unit to kg.
+                      final stored = widget.measurementType ==
+                              MeasurementType.distance
+                          ? parsed.clamp(0.0, 99999.0)
+                          : displayToKg(parsed, widget.unit)
+                              .clamp(0.0, 999.5);
+                      widget.onChanged(
+                          widget.setData.copyWith(weightKg: stored));
+                    }
+                  },
+                ),
+
+          // ── REPS / SECS — hidden for distance ───────────────────────
+          repsSlot: !widget.measurementType.showsRepsColumn
+              ? const SizedBox.shrink()
+              : _numberField(
+                  controller: _repsController,
+                  focusNode: _repsFocus,
+                  isDecimal: false,
+                  action: TextInputAction.done,
+                  semanticLabel:
+                      widget.measurementType.repsFieldSemanticLabel,
+                  hintText: widget.previousReps != null
+                      ? '${widget.previousReps!}'
+                      : '0',
+                  flashHint: _repsShouldFlash,
+                  onChanged: (val) {
+                    if (val.trim().isEmpty) {
+                      widget.onChanged(widget.setData.copyWith(reps: 0));
+                      return;
+                    }
+                    final parsed = int.tryParse(val);
+                    if (parsed != null) {
+                      widget.onChanged(widget.setData
+                          .copyWith(reps: parsed.clamp(0, 99999)));
+                    }
+                  },
+                ),
+
+          // ── Completion — always tappable; validation fires on miss ───
+          checkSlot: Semantics(
+            button: true,
+            label: isCompleted ? 'Mark set incomplete' : 'Complete set',
+            child: GestureDetector(
+              onTap: () {
+                if (isCompleted) {
+                  _onToggleComplete();
+                  return;
+                }
+                if (!_canComplete) {
+                  // Show which field(s) are empty for 1.4 s, then fade.
+                  HapticFeedback.heavyImpact();
+                  setState(() => _showValidationHint = true);
+                  Future.delayed(const Duration(milliseconds: 1400), () {
+                    if (mounted) {
+                      setState(() => _showValidationHint = false);
+                    }
+                  });
+                  return;
+                }
+                HapticFeedback.mediumImpact();
+                _onToggleComplete();
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Center(
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(isCompleted),
+                  tween: Tween<double>(
+                    begin: isCompleted ? 1.15 : 1.0,
+                    end: 1.0,
+                  ),
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 100),
+                  curve: Curves.easeOutBack,
+                  builder: (context, scale, child) =>
+                      Transform.scale(scale: scale, child: child),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: AppRadius.badgeAll,
+                      color: isCompleted
+                          ? AppColors.success
+                          : Colors.transparent,
+                      border: isCompleted
+                          ? null
+                          : Border.all(
+                              color: _canComplete
+                                  ? AppColors.success.withValues(alpha: 0.55)
+                                  : surface.textPrimary
+                                      .withValues(alpha: 0.15),
+                            ),
+                    ),
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: isCompleted
+                          ? surface.textPrimary
+                          : _canComplete
+                              ? AppColors.success.withValues(alpha: 0.7)
+                              : surface.textPrimary.withValues(alpha: 0.10),
+                      size: 18,
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

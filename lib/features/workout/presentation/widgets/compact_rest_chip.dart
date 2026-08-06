@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gymlog/core/models/rest_preference.dart';
 import 'package:gymlog/core/providers/settings_provider.dart';
 import 'package:gymlog/core/theme/app_colors.dart';
+import 'package:gymlog/core/theme/app_text.dart';
 import 'package:gymlog/core/theme/dynamic_accent_theme.dart';
 import 'package:gymlog/features/workout/domain/active_workout_state.dart';
 import 'package:gymlog/features/workout/presentation/providers/active_workout_provider.dart';
@@ -133,13 +134,7 @@ class CompactRestChip extends ConsumerWidget {
                     child: Text(
                       labelText,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        fontWeight:
-                            isCustom ? FontWeight.w600 : FontWeight.w500,
-                        color: textColor,
-                      ),
+                      style: AppText.statLabel(color: textColor),
                     ),
                   ),
                 ],

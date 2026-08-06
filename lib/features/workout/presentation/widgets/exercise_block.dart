@@ -169,12 +169,7 @@ class ExerciseBlock extends ConsumerWidget {
                             : null,
                         child: Text(
                           exerciseName,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: surface.textPrimary,
-                          ),
+                          style: AppText.sheetTitle(color: surface.textPrimary),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),

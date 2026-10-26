@@ -39,12 +39,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      # OSV is the standard vulnerability database for pub.dev packages — Dart
-      # has no first-party `pub audit`. Scans pubspec.lock. If the tag below is
-      # stale, bump it from github.com/google/osv-scanner-action/releases; this
-      # job is non-blocking so a tag bump never blocks a merge.
+      # Pin the verified v2.7.0 scanner action. The removed root @v1 tag
+      # failed during job setup, before continue-on-error could take effect.
       - name: OSV-Scanner
         continue-on-error: true
-        uses: google/osv-scanner-action@v1
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
-          scan-args: "--lockfile=pubspec.lock"
+          scan-args: |-
+            scan
+            source
+            --lockfile=pubspec.lock
